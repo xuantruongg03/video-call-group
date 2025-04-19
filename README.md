@@ -35,17 +35,29 @@ This project is built with:
 Follow these steps to run the project on your computer:
 
 ```sh
-# Step 1: Clone the repository
-git clone <YOUR_GIT_URL>
+# Step 1: Clone the repository FE
+git clone https://github.com/xuantruongg03/video-call-group.git
 
-# Step 2: Move to the project directory
-cd <YOUR_PROJECT_NAME>
+# Step 2: Clone BE
+git https://github.com/xuantruongg03/video-call-group-be.git
+
+# Step 3: Move to the BE project directory
+cd video-call-group-be
 
 # Step 3: Install dependencies
 npm i
 
 # Step 4: Start the development server with auto-reload feature
 npm run dev
+
+# Step 5: Move to FE
+cd video-call-group
+
+# Step 6: Install dependencies
+npm i
+
+# Step 7: Run
+npm run start:dev
 ```
 
 ## System Architecture
