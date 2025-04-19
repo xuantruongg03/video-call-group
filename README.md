@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
+# Video Call Application - WebRTC Group Chat
 
-## Project info
+This project is a real-time video call application using WebRTC technology and the Selective Forwarding Unit (SFU) model to support group video chat.
 
-**URL**: https://lovable.dev/projects/e4e9f6f4-9366-4820-b4f8-989499a26e06
+## Main Features
 
-## How can I edit this code?
+- **Multi-user Video Call**: Allows multiple users to join the same video conference room
+- **Screen Sharing**: Users can share their screen with others in the call
+- **Room Security**: Ability to lock the room with a password
+- **Text Chat**: Chat feature alongside video call
+- **Audio and Video Control**: Turn on/off microphone and camera
+- **Responsive Interface**: Works well on both computers and mobile devices
 
-There are several ways of editing your application.
+## Technologies Used
 
-**Use Lovable**
+This project is built with:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/e4e9f6f4-9366-4820-b4f8-989499a26e06) and start prompting.
+- **WebRTC**: Technology that enables real-time audio and video transmission
+- **PeerJS**: Library that simplifies the use of WebRTC
+- **Socket.IO**: Provides real-time connection between client and server
+- **Vite**: Modern build tool for frontend
+- **TypeScript**: Strongly typed programming language
+- **React**: JavaScript library for building user interfaces
+- **shadcn-ui**: Highly customizable UI component system
+- **Tailwind CSS**: Utility-first CSS framework
 
-Changes made via Lovable will be committed automatically to this repo.
+## How to Use
 
-**Use your preferred IDE**
+1. **Create a new room**: Enter your name and press "Create New Room"
+2. **Join an existing room**: Enter your name and room ID, then press "Join Room"
+3. **In the call**: Use the control buttons at the bottom to turn on/off camera, microphone, screen sharing, and open chat
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Installation and Development
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Follow these steps to run the project on your computer:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Step 1: Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# Step 2: Move to the project directory
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
+# Step 3: Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Start the development server with auto-reload feature
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## System Architecture
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The system uses the SFU (Selective Forwarding Unit) model, allowing multiple users to join the same video call without needing direct connections between all endpoints. This enables the system to scale better as the number of participants increases.
 
-**Use GitHub Codespaces**
+## Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+You can deploy this project on various hosting platforms such as Vercel, Netlify, or other cloud services.
 
-## What technologies are used for this project?
+## Author
 
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/e4e9f6f4-9366-4820-b4f8-989499a26e06) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+xuantruongg03
