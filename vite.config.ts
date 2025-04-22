@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 5173,
     allowedHosts: [
-      "18ff-116-96-77-111.ngrok-free.app", // Địa chỉ ngrok của bạn
+      "82ad-171-237-230-117.ngrok-free.app", // Địa chỉ ngrok của bạn
       "localhost", // Bạn có thể thêm localhost nếu cần
     ],
   },

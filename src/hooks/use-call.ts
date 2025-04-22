@@ -94,10 +94,30 @@ export function useCall(roomId: string) {
           console.log('New subscriber for our stream:', data);
           // Tạo peer connection mới cho subscriber
           if (localStreamRef.current) {
-            const conn = peer.current?.call(data.subscriberId, localStreamRef.current);
-            conn?.on('stream', (remoteStream) => {
-              // Không cần xử lý ở đây vì chúng ta là publisher
+            // Kiểm tra track video có tồn tại và được bật không
+            const videoTracks = localStreamRef.current.getVideoTracks();
+            if (videoTracks.length > 0) {
+              console.log("Video track exists and enabled:", videoTracks[0].enabled);
+            } else {
+              console.error("No video tracks found in local stream");
+            }
+            
+            // Tạo kết nối với metadata rõ ràng
+            const conn = peer.current?.call(data.subscriberId, localStreamRef.current, {
+              metadata: { video: true, audio: true }
             });
+            
+            // Lưu trữ kết nối để quản lý
+            if (conn) {
+              peerConnections.set(data.subscriberId, conn);
+              
+              // Xử lý sự kiện lỗi
+              conn.on('error', (err) => {
+                console.error('Peer connection error:', err);
+              });
+            } else {
+              console.error('Failed to create call to subscriber');
+            }
           } else {
             console.error('Cannot call subscriber: local stream ref is null');
           }
