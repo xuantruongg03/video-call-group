@@ -6,6 +6,7 @@ import { useCall } from "@/hooks/use-call";
 import CONSTANT from "@/lib/constant";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ParticipantsList } from "./ParticipantsList";
 interface VideoCallProps {
   roomId?: string;
 }
@@ -46,11 +47,21 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     }
   }
 
+  const mockParticipants = [
+    { id: 1, name: "You" },
+    { id: 2, name: "User 2" },
+    { id: 3, name: "User 3" },
+    { id: 4, name: "User 4" },
+    { id: 5, name: "User 5" },
+    { id: 6, name: "User 6" },
+  ];
+
   return (
     <div className="flex h-screen bg-gray-50 relative">
       <div className={`flex-1 p-2 md:p-4 ${isChatOpen && !isMobile ? 'mr-[320px]' : ''}`}>
-        <div className="mb-2 md:mb-4">
+        <div className="mb-2 md:mb-4 flex items-center justify-between">
           <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
+          <ParticipantsList participants={mockParticipants} />
         </div>
         <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} />
         <VideoControls 
