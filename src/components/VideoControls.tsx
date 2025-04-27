@@ -30,7 +30,6 @@ export const VideoControls = ({
   const navigate = useNavigate();
 
   const handleShareScreen = () => {
-    console.log("handleShareScreen");
     onToggleScreenShare();
   }
 
@@ -41,6 +40,8 @@ export const VideoControls = ({
     localStorage.removeItem(CONSTANT.IS_LOCKED);
     //Clear socket
     sfuSocket.disconnect();
+    sfuSocket.removeAllListeners();
+    sfuSocket.close();
     navigate('/room');
   };
 
