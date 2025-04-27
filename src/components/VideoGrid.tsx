@@ -20,10 +20,8 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
   const isMobile = useIsMobile();
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
   
-  // Sử dụng useRef để theo dõi streams hiện tại mà không gây re-render
   const streamMapRef = useRef<Map<string, MediaStream>>(new Map());
   
-  // Cập nhật video elements một cách độc lập với re-render cycle
   const attachMediaStream = useCallback((id: string, stream: MediaStream) => {
     const videoElement = videoRefs.current[id];
     if (videoElement && videoElement.srcObject !== stream) {
@@ -31,7 +29,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
     }
   }, []);
   
-  // Cập nhật streamMapRef khi streams thay đổi
   useEffect(() => {
     streams.forEach(({ id, stream }) => {
       streamMapRef.current.set(id, stream);
@@ -109,13 +106,11 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
     };
   };
 
-  // Check if a stream is a screen share
   const isScreenShare = (streamId: string) => {
     return streamId.includes('screen') ||
       streamMetadata[streamId]?.metadata?.type === 'screen';
   };
 
-  // Filter streams: first active stream (if any), then all other streams
   const sortedStreams = activeStream
     ? [
       ...streams.filter(s => s.id === activeStream),
@@ -160,7 +155,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
                 style={{ opacity: videoOff ? 0 : 1 }}
               />
 
-              {/* Avatar/placeholder khi tắt cam */}
               {videoOff && !isScreen && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                   <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold">
@@ -175,7 +169,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
               {isScreen ? 'Màn hình chia sẻ' : stream.id === 'local' ? 'Bạn' : stream.id}
             </span>
 
-            {/* Display mute/video-off icons for all participants */}
             <div className="absolute top-2 right-2 flex gap-2">
               {videoOff && !isScreen && (
                 <div className="bg-black/60 p-1.5 rounded-full">

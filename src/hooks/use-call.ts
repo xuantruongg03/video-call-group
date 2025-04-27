@@ -161,7 +161,6 @@ export function useCall(roomId: string, password?: string) {
         publishedKindsRef.current.video = true;
       }
 
-      // Publish audio track
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         const audioProducer = await sendTransportRef.current.produce({
@@ -212,18 +211,11 @@ export function useCall(roomId: string, password?: string) {
       );
       if (!exists) {
         pendingStreamsRef.current.push(streamInfo);
-        console.log(
-          `Đã thêm stream ${streamInfo.streamId} vào hàng đợi, tổng số: ${pendingStreamsRef.current.length}`
-        );
       }
       return;
     }
 
     try {
-      console.log(
-        `Yêu cầu consume stream ${streamInfo.streamId} từ ${streamInfo.publisherId}`
-      );
-      // Gửi yêu cầu consume stream
       sfuSocket.emit("sfu:consume", {
         streamId: streamInfo.streamId,
         transportId: recvTransportRef.current.id,
@@ -233,7 +225,6 @@ export function useCall(roomId: string, password?: string) {
     }
   }, []);
 
-  // Thêm useEffect mới để xử lý các streams khi transport sẵn sàng
   useEffect(() => {
     const processPendingStreams = () => {
       if (
@@ -241,30 +232,13 @@ export function useCall(roomId: string, password?: string) {
         recvTransportRef.current.connectionState === "connected" &&
         pendingStreamsRef.current.length > 0
       ) {
-        console.log(
-          `⚪ Xử lý ${pendingStreamsRef.current.length} streams đang chờ sau khi transport kết nối`
-        );
-        console.log(
-          `⚪ Trạng thái transport: ${recvTransportRef.current.connectionState}`
-        );
-        console.log(`⚪ Transport ID: ${recvTransportRef.current.id}`);
-
         const pendingStreams = [...pendingStreamsRef.current];
         pendingStreamsRef.current = [];
 
         // Thêm debug chi tiết
         pendingStreams.forEach((stream, index) => {
-          console.log(
-            `⚪ [${index + 1}/${pendingStreams.length}] Chuẩn bị xử lý stream ${
-              stream.streamId
-            }`
-          );
-
           setTimeout(() => {
             if (!recvTransportRef.current) {
-              console.error(
-                `❌ Transport không tồn tại khi cố xử lý stream ${stream.streamId}`
-              );
               pendingStreamsRef.current.push(stream);
               return;
             }
@@ -383,7 +357,6 @@ export function useCall(roomId: string, password?: string) {
         password: roomPassword,
       });
 
-      // Đánh dấu đã thử tham gia
       hasJoinedRef.current = true;
     } catch (error: any) {
       console.error("Join room error:", error);
@@ -404,8 +377,6 @@ export function useCall(roomId: string, password?: string) {
     const onConnectSuccess = () => {
       console.log("Socket connected to SFU server");
       setIsConnected(true);
-
-      // Tự động tham gia phòng khi kết nối thành công
       joinRoom();
     };
 
@@ -421,17 +392,14 @@ export function useCall(roomId: string, password?: string) {
       setError("Failed to connect to SFU server");
     };
 
-    // Register socket event listeners
     sfuSocket.on("connect", onConnectSuccess);
     sfuSocket.on("disconnect", onDisconnect);
     sfuSocket.on("connect_error", onConnectError);
 
-    // Nếu socket đã kết nối, tham gia phòng ngay lập tức
     if (sfuSocket.connected) {
       joinRoom();
     }
 
-    // Cleanup on unmount
     return () => {
       sfuSocket.off("connect", onConnectSuccess);
       sfuSocket.off("disconnect", onDisconnect);
@@ -456,9 +424,7 @@ export function useCall(roomId: string, password?: string) {
       toast.error(err.message);
 
       if (err.code === "ROOM_PASSWORD_REQUIRED") {
-        hasJoinedRef.current = false; // Reset để có thể thử lại
-        // Prompt user for password
-        // This would typically be handled by the UI component
+        hasJoinedRef.current = false; 
       }
     };
 
@@ -469,23 +435,16 @@ export function useCall(roomId: string, password?: string) {
 
     const onTransportCreated = async (transportInfo: any) => {
       try {
-        console.log(
-          `🔧 Transport được tạo: ${transportInfo.id}, isProducer: ${transportInfo.isProducer}`
-        );
-
         if (!deviceRef.current) {
           throw new Error("Device not initialized");
         }
 
-        // Use the transport info without ICE servers
         const transport = transportInfo.isProducer
           ? deviceRef.current.createSendTransport(transportInfo)
           : deviceRef.current.createRecvTransport(transportInfo);
 
         if (!transportInfo.isProducer) {
           recvTransportRef.current = transport;
-
-          // 🔥 Xử lý các stream đang chờ NGAY tại đây
           pendingStreamsRef.current.forEach((s) => {
             sfuSocket.emit("sfu:consume", {
               streamId: s.streamId,
@@ -535,7 +494,7 @@ export function useCall(roomId: string, password?: string) {
               sfuSocket.once("sfu:producer-created", (data) => {
                 producersRef.current.set(data.producerId, {
                   producerId: data.producerId,
-                  streamId: data.streamId, // 👈 LƯU
+                  streamId: data.streamId, 
                   kind: data.kind,
                   appData: data.appData,
                 });
@@ -595,29 +554,18 @@ export function useCall(roomId: string, password?: string) {
               sfuSocket.on("sfu:error", handleError);
 
               const timeoutId = setTimeout(() => {
-                console.error(
-                  "Timeout waiting for transport connected response"
-                );
                 sfuSocket.off(
                   "sfu:transport-connected",
                   handleTransportConnected
                 );
                 sfuSocket.off("sfu:error", handleError);
 
-                // Xóa khỏi connecting set để có thể thử lại
                 connectingTransportsRef.current.delete(transport.id);
 
                 errback(new Error("Transport connection timeout"));
               }, 30000);
             } catch (error) {
-              console.error(
-                "❌ Error during receive transport connect:",
-                error
-              );
-
-              // Xóa khỏi connecting set
               connectingTransportsRef.current.delete(transport.id);
-
               errback(error);
             }
           });
@@ -626,20 +574,12 @@ export function useCall(roomId: string, password?: string) {
             console.log(`Receive transport state changed: ${state}`);
 
             if (state === "connected") {
-              // Set transport as ready when connected successfully
               transportReadyRef.current = true;
               setTransportReady(true);
-
-              // Lấy danh sách streams hiện có
               sfuSocket.emit("sfu:get-streams", { roomId });
-
-              // Xử lý các streams đang chờ
               if (pendingStreamsRef.current.length > 0) {
-                console.log(
-                  `Xử lý ${pendingStreamsRef.current.length} streams đang chờ sau khi transport kết nối`
-                );
                 const pendingStreams = [...pendingStreamsRef.current];
-                pendingStreamsRef.current = []; // Xóa hàng đợi
+                pendingStreamsRef.current = []; 
 
                 pendingStreams.forEach((stream) => {
                   consumeStream(stream);
@@ -650,26 +590,12 @@ export function useCall(roomId: string, password?: string) {
               state === "disconnected" ||
               state === "closed"
             ) {
-              console.error(
-                `Receive transport connection failed with state: ${state}`
-              );
-
-              // Thông báo cho người dùng
               toast.error(
                 "Kết nối nhận video bị gián đoạn. Đang thử kết nối lại..."
               );
 
-              // Only update UI state
               setTransportReady(false);
 
-              // Log details about pending streams for debugging
-              if (pendingStreamsRef.current.length > 0) {
-                console.log(
-                  `Số lượng streams đang chờ xử lý: ${pendingStreamsRef.current.length}`
-                );
-              }
-
-              // Thử khởi tạo lại receive transport sau một thời gian ngắn
               setTimeout(() => {
                 if (deviceRef.current?.loaded) {
                   console.log(
@@ -686,33 +612,19 @@ export function useCall(roomId: string, password?: string) {
               state === "connecting" &&
               !transportConnectingTimerRef.current
             ) {
-              // Thêm timer để phát hiện kết nối bị kẹt ở trạng thái connecting
               transportConnectingTimerRef.current = setTimeout(() => {
                 if (
                   recvTransportRef.current &&
                   recvTransportRef.current.connectionState === "connecting"
                 ) {
-                  console.log(
-                    "⚠️ Transport stuck in connecting state. Attempting to force connection."
-                  );
-
-                  // Hack: Gửi yêu cầu consume cho một stream bất kỳ để ép thiết lập kết nối
                   if (pendingStreamsRef.current.length > 0) {
                     const firstStream = pendingStreamsRef.current[0];
-                    console.log(
-                      `🔧 Gửi yêu cầu consume cho stream ${firstStream.streamId} để ép kết nối`
-                    );
-
                     sfuSocket.emit("sfu:consume", {
                       streamId: firstStream.streamId,
                       transportId: recvTransportRef.current.id,
                       forceConnect: true,
                     });
                   } else {
-                    // Không có stream nào trong hàng đợi, yêu cầu danh sách streams
-                    console.log(
-                      "🔍 Không có stream nào trong hàng đợi, yêu cầu danh sách streams"
-                    );
                     sfuSocket.emit("sfu:get-streams", { roomId });
                   }
                 }
@@ -722,8 +634,6 @@ export function useCall(roomId: string, password?: string) {
             }
           });
         }
-
-        // Ngay sau khi tạo và lưu receive transport
         if (!transportInfo.isProducer) {
           recvTransportRef.current = transport;
         }
@@ -743,8 +653,6 @@ export function useCall(roomId: string, password?: string) {
         if (!recvTransportRef.current) {
           throw new Error("Receive transport not initialized");
         }
-
-        // Kiểm tra xem consumer đã tồn tại chưa và tránh tạo lại
         const existingConsumer = Array.from(consumersRef.current.values()).find(
           (c) => c.streamId === data.streamId && c.kind === data.kind
         );
@@ -753,7 +661,6 @@ export function useCall(roomId: string, password?: string) {
           return;
         }
 
-        // Create consumer với thêm timeout dài hơn
         const consumer = await recvTransportRef.current.consume({
           id: data.consumerId,
           producerId: data.producerId,
@@ -761,90 +668,61 @@ export function useCall(roomId: string, password?: string) {
           rtpParameters: data.rtpParameters,
         });
 
-        // Đăng ký các sự kiện theo dõi consumer
         consumer.on("transportclose", () => {
           console.log(`Consumer transport closed for ${data.consumerId}`);
         });
 
-        sfuSocket.emit("sfu:request-keyframe", { streamId: data.streamId });
-        // Đảm bảo track được kích hoạt
-        if (consumer.track) {
-          consumer.track.enabled = true;
+        // sfuSocket.emit("sfu:request-keyframe", { streamId: data.streamId });
+        // // Đảm bảo track được kích hoạt
+        // if (consumer.track) {
+        //   consumer.track.enabled = true;
 
-          // Nếu là video track, thử tăng ưu tiên
-          if (consumer.track.kind === "video") {
-            console.log(`Enabling video track for consumer ${data.consumerId}`);
-            // Thêm các thuộc tính để tăng ưu tiên
-            try {
-              // @ts-ignore
-              consumer.track.contentHint = "motion";
-              consumer.track.enabled = true;
-            } catch (e) {
-              console.log("Content hint not supported");
-            }
+        //   // Nếu là video track, thử tăng ưu tiên
+        //   if (consumer.track.kind === "video") {
+        //     try {
+        //       consumer.track.contentHint = "motion";
+        //       consumer.track.enabled = true;
+        //     } catch (e) {
+        //       console.log("Content hint not supported");
+        //     }
+        //   }
+        // }
 
-            // In thông số kỹ thuật để debug
-            console.log(`Video track settings:`, consumer.track.getSettings());
-          }
-        }
-
-        // Save consumer
         consumersRef.current.set(data.consumerId, {
           consumer,
           streamId: data.streamId,
           kind: data.kind,
         });
 
-        // Resume consumer - thêm thời gian chờ ngắn trước khi resume để tránh race condition
         setTimeout(() => {
           sfuSocket.emit("sfu:resume-consumer", {
             consumerId: data.consumerId,
           });
         }, 50);
-
-        // Xử lý tracks
         if (!consumer.track) {
           return;
         }
 
-        // Extract publisherId from streamId
         const remoteStreamId = makeRemoteId(data.streamId);
-
-        // Use the MediaStream map to maintain stable references
         let currentStream = remoteStreamsMapRef.current.get(remoteStreamId);
 
         if (currentStream) {
-          // Check if stream already has a track of this kind
-          // const existingTrackOfKind = currentStream
-          //   .getTracks()
-          //   .find((t) => t.kind === data.kind);
-
-          // if (existingTrackOfKind) {
-          //   currentStream.removeTrack(existingTrackOfKind);
-          // }
-
-          // Add new track to existing stream
           try {
             currentStream.addTrack(consumer.track);
           } catch (e) {
-            // Tạo stream mới nếu không thể thêm track
             currentStream = new MediaStream([consumer.track]);
             remoteStreamsMapRef.current.set(remoteStreamId, currentStream);
           }
         } else {
-          // Create new MediaStream
           currentStream = new MediaStream([consumer.track]);
-          // Store in map
           remoteStreamsMapRef.current.set(remoteStreamId, currentStream);
         }
 
-        // Update streams state with slight delay to ensure track is ready
         setTimeout(() => {
           setStreams((prev) => {
             const streamIndex = prev.findIndex((s) => s.id === remoteStreamId);
 
             if (streamIndex >= 0) {
-              // Only update if the stream reference has changed
               if (prev[streamIndex].stream !== currentStream) {
                 const updated = [...prev];
                 updated[streamIndex] = {
@@ -854,7 +732,7 @@ export function useCall(roomId: string, password?: string) {
                 };
                 return updated;
               }
-              return prev; // No change needed
+              return prev; 
             } else {
               return [
                 ...prev,
@@ -880,10 +758,8 @@ export function useCall(roomId: string, password?: string) {
       consumerId: string;
       streamId: string;
     }) => {
-      // Remove consumer
       consumersRef.current.delete(data.consumerId);
 
-      // Remove track from stream
       setStreams((prev) => {
         const streamIndex = prev.findIndex((s) => s.id === data.streamId);
         if (streamIndex >= 0) {
@@ -897,18 +773,13 @@ export function useCall(roomId: string, password?: string) {
     };
 
     function makeRemoteId(streamId: string) {
-      // rrrr-video-17457458…  →  rrrr-video
-      const [publisherId, mediaType] = streamId.split("-"); // ['rrrr', 'video', ...]
-      return `remote-${publisherId}-${mediaType}`; // remote-rrrr-video
+      const [publisherId, mediaType] = streamId.split("-"); 
+      return `remote-${publisherId}-${mediaType}`; 
     }
 
     const onStreamAdded = (stream: Stream) => {
-      // Kiểm tra xem stream này không phải của mình
       const userName = localStorage.getItem(CONSTANT.USER_NAME);
-
-      // Sửa điều kiện này để consume tất cả các luồng video không phải của mình
       if (stream.publisherId !== userName) {
-        // Loại bỏ điều kiện && stream.metadata.video để đảm bảo nhận cả video và audio
         consumeStream(stream);
       } else {
         console.log(`Ignoring my own stream ${stream.streamId}`);
@@ -921,7 +792,6 @@ export function useCall(roomId: string, password?: string) {
     }) => {
       const remoteStreamId = makeRemoteId(data.streamId);
       
-      // Tìm consumer cần xóa
       const consumersToDelete: string[] = [];
       consumersRef.current.forEach((info, consumerId) => {
         if (info.streamId === data.streamId) {
@@ -929,7 +799,6 @@ export function useCall(roomId: string, password?: string) {
         }
       });
       
-      // Xóa consumers
       consumersToDelete.forEach((id) => consumersRef.current.delete(id));
 
       setStreams((prev) => {
