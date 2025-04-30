@@ -28,7 +28,8 @@ export const VideoControls = ({
 }: VideoControlsProps) => {
   const navigate = useNavigate();
   const room = useSelector((state: any) => state.room);
-
+  console.log(room);
+  
   const handleShareScreen = () => {
     onToggleScreenShare();
   }

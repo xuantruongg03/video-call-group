@@ -8,12 +8,12 @@ const initialState = {
 
 const roomReducer = (state = initialState, action: ActionRoom) => {
   switch (action.type) {
-    case "JOIN_ROOM":    
+    case "JOIN_ROOM":
       state = {
         ...state,
         username: action.payload?.username || state.username,
         password: action.payload?.password || state.password,
-        isLocked: action.payload?.isLocked || state.isLocked,
+        isLocked: action.payload?.isLocked !== undefined ? action.payload?.isLocked : state.isLocked,
       };
       return state;
     case "LEAVE_ROOM":

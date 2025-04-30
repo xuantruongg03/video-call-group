@@ -129,9 +129,9 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     return 'grid-cols-4';
   };
 
-  // const isSpeaking = (streamId: string) => {
-  //   return streamMetadata[streamId]?.metadata?.speaking;
-  // };
+  const randomColor = () => {
+    return '#' + Math.floor(Math.random() * 16777215).toString(16);
+  };
 
   return (
     <div className={`grid ${getGridColsClass()} gap-2 md:gap-4 h-[calc(100vh-120px)]`}>
@@ -161,22 +161,17 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
             <div
               className="relative bg-gray-800 rounded-lg overflow-hidden w-full h-full"
             >
-              {(speakingPeers.includes(stream.id) || isSpeaking) && (
-                <div className="absolute top-2 right-2 animate-pulse">
-                  <Speaker className="h-5 w-5 text-green-400" />
-                </div>
-              )}
               <video
                 ref={el => videoRefs.current[stream.id] = el}
                 autoPlay
                 playsInline
                 muted={stream.id === 'local' || micOff}
-                className="w-full h-full object-contain"
+                className={`w-full h-full object-contain ${speakingPeers.includes(stream.id) || isSpeaking ? "border-2 border-green-500" : ""}`}
                 style={{ opacity: videoOff ? 0 : 1 }}
               />
 
               {videoOff && !isScreen && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
                   <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold">
                     {stream.id === 'local' ? 'B' : stream.id.charAt(0).toUpperCase()}
                   </div>
