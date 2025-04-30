@@ -1,5 +1,5 @@
 import { sfuSocket } from "@/hooks/use-call";
-import { MicOff, VideoOff } from "lucide-react";
+import { MicOff, VideoOff, Volume2 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -19,23 +19,23 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
   const [activeStream, setActiveStream] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
-  
+
   const streamMapRef = useRef<Map<string, MediaStream>>(new Map());
-  
+
   const attachMediaStream = useCallback((id: string, stream: MediaStream) => {
     const videoElement = videoRefs.current[id];
     if (videoElement && videoElement.srcObject !== stream) {
       videoElement.srcObject = stream;
     }
   }, []);
-  
+
   useEffect(() => {
     streams.forEach(({ id, stream }) => {
       streamMapRef.current.set(id, stream);
       attachMediaStream(id, stream);
     });
   }, [streams, attachMediaStream]);
-  
+
   useEffect(() => {
     sfuSocket.on('sfu:stream-updated', ({ streamId, publisherId, metadata }:
       { streamId: string, publisherId: string, metadata: any }
@@ -129,10 +129,25 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
     return 'grid-cols-4';
   };
 
+  // const isSpeaking = (streamId: string) => {
+  //   return streamMetadata[streamId]?.metadata?.speaking;
+  // };
+
   return (
     <div className={`grid ${getGridColsClass()} gap-2 md:gap-4 h-[calc(100vh-120px)]`}>
       {sortedStreams.map((stream) => {
-        if (stream.id.includes('audio') || stream.id.includes('mic')) return null;
+        // if (stream.id.includes('audio') || stream.id.includes('mic')) return null;
+        // trước khi return null
+        if (stream.id.includes('audio') || stream.id.includes('mic')) {
+          return (
+            <audio
+              key={stream.id}
+              ref={el => { if (el) el.srcObject = stream.stream; }}
+              autoPlay
+            />
+          );
+        }
+
         const { videoOff, micOff } = getParticipantStatus(stream.id);
         const isScreen = isScreenShare(stream.id);
 
@@ -146,11 +161,16 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
             <div
               className="relative bg-gray-800 rounded-lg overflow-hidden w-full h-full"
             >
+              {/* {isSpeaking && (
+                  <div className="absolute top-2 right-2 animate-pulse">
+                    <Volume2 className="h-5 w-5 text-green-400" />
+                  </div>
+                )} */}
               <video
                 ref={el => videoRefs.current[stream.id] = el}
                 autoPlay
                 playsInline
-                muted={stream.id === 'local'}
+                muted={stream.id === 'local' || micOff}
                 className="w-full h-full object-contain"
                 style={{ opacity: videoOff ? 0 : 1 }}
               />
@@ -166,7 +186,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
             </div>
 
             <span className="absolute bottom-2 md:bottom-4 left-2 md:left-4 text-sm md:text-base text-white bg-black/60 px-2 py-1 rounded-md">
-              {isScreen ? 'Màn hình chia sẻ' : stream.id === 'local' ? 'Bạn' : stream.id}
+              {isScreen ? 'Màn hình chia sẻ' : stream.id === 'local' ? 'Bạn' : stream.id.split('-')[1]}
             </span>
 
             <div className="absolute top-2 right-2 flex gap-2">

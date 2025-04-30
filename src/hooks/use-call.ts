@@ -1,14 +1,11 @@
-import axiosClient from "@/apis/api-client";
 import CONSTANT from "@/lib/constant";
-import { useQuery } from "@tanstack/react-query";
-import { Device, types as mediasoupTypes } from "mediasoup-client";
-import { useEffect, useRef, useState, useCallback } from "react";
-import { io, Socket } from "socket.io-client";
-import { toast } from "sonner";
 import hark from "hark";
-
+import { Device, types as mediasoupTypes } from "mediasoup-client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
+import { toast } from "sonner";
+import { useSelector } from "react-redux";
 const SFU_URL = import.meta.env.VITE_SFU_URL || "http://localhost:3002";
-const SERVER_URL = import.meta.env.VITE_SERVER_URL;
 
 // Cấu hình TURN server (nên có)
 const iceServers = [
@@ -29,24 +26,15 @@ interface Stream {
   metadata: StreamMetadata;
 }
 
-const fetchRoomInfo = async (roomId: string) => {
-  const response = await axiosClient.post(
-    `${SERVER_URL}/sfu/check-room-status`,
-    { roomId }
-  );
-  return response.data;
-};
-
 // Khởi tạo socket và tự động kết nối
 export const sfuSocket = io(SFU_URL, {
   transports: ["websocket"],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
+  autoConnect: false
 });
-
 export function useCall(roomId: string, password?: string) {
-  // States
   const [streams, setStreams] = useState<
     { id: string; stream: MediaStream; metadata?: StreamMetadata }[]
   >([]);
@@ -61,6 +49,7 @@ export function useCall(roomId: string, password?: string) {
     password
   );
   const [transportReady, setTransportReady] = useState(false);
+  const room = useSelector((state: any) => state.room);
 
   // Refs
   const deviceRef = useRef<Device | null>(null);
@@ -198,14 +187,7 @@ export function useCall(roomId: string, password?: string) {
 
   // Consumer stream
   const consumeStream = useCallback(async (streamInfo: Stream) => {
-    // Sử dụng transportReadyRef để kiểm tra xem transport đã từng kết nối thành công chưa
-    // thay vì chỉ kiểm tra trạng thái hiện tại của transport
     if (!deviceRef.current?.loaded || !recvTransportRef.current) {
-      console.log(
-        `Transport chưa sẵn sàng, đưa stream ${streamInfo.streamId} vào hàng đợi`
-      );
-
-      // Chỉ đưa vào hàng đợi nếu chưa có stream này
       const exists = pendingStreamsRef.current.some(
         (s) => s.streamId === streamInfo.streamId
       );
@@ -235,7 +217,6 @@ export function useCall(roomId: string, password?: string) {
         const pendingStreams = [...pendingStreamsRef.current];
         pendingStreamsRef.current = [];
 
-        // Thêm debug chi tiết
         pendingStreams.forEach((stream, index) => {
           setTimeout(() => {
             if (!recvTransportRef.current) {
@@ -244,16 +225,9 @@ export function useCall(roomId: string, password?: string) {
             }
 
             if (recvTransportRef.current.connectionState !== "connected") {
-              console.error(
-                `❌ Transport không ở trạng thái connected (${recvTransportRef.current.connectionState}) khi xử lý stream ${stream.streamId}`
-              );
               pendingStreamsRef.current.push(stream);
               return;
             }
-
-            console.log(
-              `✅ Gửi yêu cầu consume cho stream ${stream.streamId}, transportId=${recvTransportRef.current.id}`
-            );
 
             // Gửi yêu cầu với thêm tham số để debug
             sfuSocket.emit("sfu:consume", {
@@ -341,7 +315,8 @@ export function useCall(roomId: string, password?: string) {
       setError(null);
 
       // Get username from localStorage
-      const userName = localStorage.getItem(CONSTANT.USER_NAME);
+      // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+      const userName = room.username;
       if (!userName) {
         setError("Username not found");
         toast.error("Username not found");
@@ -360,17 +335,17 @@ export function useCall(roomId: string, password?: string) {
       hasJoinedRef.current = true;
     } catch (error: any) {
       console.error("Join room error:", error);
-      setError(error.message || "Failed to join the room");
-      toast.error(error.message || "Failed to join the room");
+      setError(error.message || "Lỗi khi tham gia phòng");
+      toast.error(error.message || "Lỗi khi tham gia phòng");
     }
   }, [roomId, roomPassword]);
 
   // Thiết lập password phòng
   useEffect(() => {
-    if (password) {
-      setRoomPassword(password);
+    if (room.password) {
+      setRoomPassword(room.password);
     }
-  }, [password]);
+  }, [room.password]);
 
   // Xử lý kết nối socket và tham gia phòng
   useEffect(() => {
@@ -778,7 +753,8 @@ export function useCall(roomId: string, password?: string) {
     }
 
     const onStreamAdded = (stream: Stream) => {
-      const userName = localStorage.getItem(CONSTANT.USER_NAME);
+      // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+      const userName = room.username;
       if (stream.publisherId !== userName) {
         consumeStream(stream);
       } else {
@@ -812,7 +788,8 @@ export function useCall(roomId: string, password?: string) {
 
       availableStreams.forEach((stream) => {
         // Bỏ qua stream của mình
-        const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        const userName = room.username;
         if (stream.publisherId === userName) {
           return;
         }
@@ -833,14 +810,9 @@ export function useCall(roomId: string, password?: string) {
       });
     };
 
-    const onPeerJoined = (data: { peerId: string }) => {
-      console.log(`Peer joined: ${data.peerId}`);
-      // You can update UI to show new participant
-    };
-
     const onPeerLeft = (data: { peerId: string }) => {
-      console.log(`Peer left: ${data.peerId}`);
-
+      console.log(data.peerId);
+      
       // Remove speaking status if applicable
       setSpeakingPeers((prev) => {
         const newSpeakingPeers = new Set(prev);
@@ -849,15 +821,15 @@ export function useCall(roomId: string, password?: string) {
       });
 
       // Xóa stream từ remoteStreamsMap
-      const remoteStreamId = `remote-${data.peerId}`;
-      remoteStreamsMapRef.current.delete(data.peerId);
+      remoteStreamsMapRef.current.forEach((stream, id) => {
+        if (id.includes(data.peerId)) {
+          remoteStreamsMapRef.current.delete(id);
+        }
+      });
 
-      // Cập nhật UI bằng cách xóa stream của người dùng khỏi mảng streams
       setStreams((prev) =>
-        prev.filter((stream) => stream.id !== remoteStreamId)
+        prev.filter((stream) => !stream.id.includes(data.peerId))
       );
-
-      console.log(`Stream removed: ${data.peerId}`);
     };
 
     const onUserSpeaking = (data: { peerId: string }) => {
@@ -883,9 +855,9 @@ export function useCall(roomId: string, password?: string) {
     }) => {
       setIsLocked(data.locked);
       if (data.locked) {
-        toast.info(`Room locked by ${data.lockedBy}`);
+        toast.info(`Phòng đã bị khóa bởi ${data.lockedBy}`);
       } else {
-        toast.info(`Room unlocked by ${data.unlockedBy}`);
+        toast.info(`Phòng đã được mở khóa bởi ${data.unlockedBy}`);
       }
     };
 
@@ -973,8 +945,8 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.on("sfu:stream-added", onStreamAdded);
     sfuSocket.on("sfu:stream-removed", onStreamRemoved);
     sfuSocket.on("sfu:streams", onStreams);
-    sfuSocket.on("sfu:peer-joined", onPeerJoined);
     sfuSocket.on("sfu:peer-left", onPeerLeft);
+    sfuSocket.on("sfu:user-removed", onPeerLeft);
     sfuSocket.on("sfu:user-speaking", onUserSpeaking);
     sfuSocket.on("sfu:user-stopped-speaking", onUserStoppedSpeaking);
     sfuSocket.on("sfu:room-locked", onRoomLocked);
@@ -992,8 +964,8 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:stream-added", onStreamAdded);
       sfuSocket.off("sfu:stream-removed", onStreamRemoved);
       sfuSocket.off("sfu:streams", onStreams);
-      sfuSocket.off("sfu:peer-joined", onPeerJoined);
       sfuSocket.off("sfu:peer-left", onPeerLeft);
+      sfuSocket.off("sfu:user-removed", onPeerLeft);
       sfuSocket.off("sfu:user-speaking", onUserSpeaking);
       sfuSocket.off("sfu:user-stopped-speaking", onUserStoppedSpeaking);
       sfuSocket.off("sfu:room-locked", onRoomLocked);
@@ -1004,7 +976,6 @@ export function useCall(roomId: string, password?: string) {
   // Thêm useEffect để tự động khởi tạo local media khi đã tham gia room thành công
   useEffect(() => {
     if (isJoined) {
-      // Đợi một khoảng thời gian nhỏ để đảm bảo transport đã được thiết lập
       const timer = setTimeout(() => {
         console.log("Initializing local media after join...");
         initializeLocalMedia().then((success) => {
@@ -1020,15 +991,11 @@ export function useCall(roomId: string, password?: string) {
     }
   }, [isJoined]);
 
-  // Giữ nguyên các function khác như initializeLocalMedia, toggleVideo, toggleAudio...
-
   // Function để cung cấp mật khẩu phòng
   const provideRoomPassword = useCallback(
     (password: string) => {
       setRoomPassword(password);
-      hasJoinedRef.current = false; // Reset để thử lại
-
-      // Tham gia lại phòng với mật khẩu mới
+      hasJoinedRef.current = false;
       if (sfuSocket.connected) {
         joinRoom();
       }
@@ -1067,7 +1034,6 @@ export function useCall(roomId: string, password?: string) {
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
 
-        // Update metadata on server
         producersRef.current.forEach((info, streamId) => {
           if (info.kind === "audio") {
             sfuSocket.emit("sfu:update", {
@@ -1100,18 +1066,13 @@ export function useCall(roomId: string, password?: string) {
         },
       });
 
-      // Ensure all tracks are enabled
       stream.getTracks().forEach((track) => {
         track.enabled = true;
       });
 
       localStreamRef.current = stream;
-
-      // QUAN TRỌNG: Đảm bảo thêm stream vào STATE
       setStreams((prev) => {
-        // Xóa stream 'local' cũ nếu có
         const filteredStreams = prev.filter((s) => s.id !== "local");
-        // Thêm stream mới vào đầu danh sách với metadata
         return [
           {
             id: "local",
@@ -1122,7 +1083,6 @@ export function useCall(roomId: string, password?: string) {
         ];
       });
 
-      // Setup speech detection
       if (speechEventsRef.current) {
         speechEventsRef.current.stop();
       }
@@ -1134,7 +1094,8 @@ export function useCall(roomId: string, password?: string) {
 
       speechEventsRef.current.on("speaking", () => {
         setIsSpeaking(true);
-        const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        const userName = room.username;
         if (userName && isJoined) {
           sfuSocket.emit("sfu:my-speaking", {
             roomId,
@@ -1145,7 +1106,8 @@ export function useCall(roomId: string, password?: string) {
 
       speechEventsRef.current.on("stopped_speaking", () => {
         setIsSpeaking(false);
-        const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        const userName = room.username;
         if (userName && isJoined) {
           sfuSocket.emit("sfu:stop-speaking", {
             roomId,
@@ -1154,7 +1116,6 @@ export function useCall(roomId: string, password?: string) {
         }
       });
 
-      // Nếu transport đã sẵn sàng, publish ngay
       if (sendTransportRef.current && deviceRef.current?.loaded) {
         await publishTracks();
       }
@@ -1173,7 +1134,8 @@ export function useCall(roomId: string, password?: string) {
       if (isLocked) {
         sfuSocket.emit("sfu:unlock-room", { roomId });
       } else if (password) {
-        const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
+        const userName = room.username;
         sfuSocket.emit("sfu:lock-room", {
           roomId,
           password,
@@ -1187,25 +1149,16 @@ export function useCall(roomId: string, password?: string) {
   // Toggle screen sharing
   const toggleScreenShare = useCallback(async () => {
     try {
-      console.log("isScreenSharing", isScreenSharing);
-      console.log("screenStreamRef.current", screenStreamRef.current);
-      // If already sharing screen, stop
       if (isScreenSharing && screenStreamRef.current) {
-        console.log("Stopping screen share");
-
-        // Stop all tracks in screen share
         screenStreamRef.current.getTracks().forEach((track) => {
           track.stop();
         });
 
-        // Find and unpublish screen producers
         producersRef.current.forEach((info) => {
           if (info?.streamId?.includes("screen")) {
             sfuSocket.emit("sfu:unpublish", { streamId: info.streamId });
           }
         });
-
-        // Only remove screen sharing streams from the UI
         setStreams((prev) =>
           prev.filter((stream) => stream.id !== "screen-local")
         );
@@ -1215,7 +1168,6 @@ export function useCall(roomId: string, password?: string) {
         return false;
       }
 
-      // Start screen sharing
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           cursor: "always",
@@ -1224,19 +1176,15 @@ export function useCall(roomId: string, password?: string) {
       });
 
       screenStreamRef.current = screenStream;
-
-      // Add screen stream to display list
       setStreams((prev) => [
         ...prev,
         { id: "screen-local", stream: screenStream },
       ]);
 
-      // Publish screen stream
       if (sendTransportRef.current) {
         const videoTrack = screenStream.getVideoTracks()[0];
 
-        // Publish screen video
-        const producer = await sendTransportRef.current.produce({
+        await sendTransportRef.current.produce({
           track: videoTrack,
           appData: {
             video: true,
@@ -1246,14 +1194,8 @@ export function useCall(roomId: string, password?: string) {
           },
         });
 
-        // Update state
         setIsScreenSharing(true);
-
-        // Handle when user stops screen sharing from browser
         videoTrack.onended = () => {
-          console.log("Screen sharing ended by user");
-
-          // Find and unpublish screen producer
           producersRef.current.forEach((info, streamId) => {
             if (info.appData && info.appData.type === "screen") {
               sfuSocket.emit("sfu:unpublish", { streamId });
@@ -1265,7 +1207,6 @@ export function useCall(roomId: string, password?: string) {
           screenStreamRef.current = null;
           setIsScreenSharing(false);
 
-          // Remove screen sharing stream from UI
           setStreams((prev) =>
             prev.filter((stream) => stream.id !== "screen-local")
           );
@@ -1279,31 +1220,34 @@ export function useCall(roomId: string, password?: string) {
     }
   }, [isScreenSharing]);
 
+  const clearConnection = useCallback(() => {
+    sfuSocket.emit("sfu:leave-room", { roomId });
+    sfuSocket.disconnect();
+    sfuSocket.removeAllListeners();
+    sfuSocket.close();
+    setIsJoined(false);
+    setIsConnected(false);
+    setIsLocked(false);
+    setStreams([]);
+    setIsScreenSharing(false);
+    setIsSpeaking(false);
+    setRoomPassword("");
+  }, []);
+
   return {
-    // Connection state
     isConnected,
     isJoined,
     error,
-
-    // Media streams
     streams,
-
-    // Control functions
     provideRoomPassword,
     initializeLocalMedia,
     toggleVideo,
     toggleAudio,
     toggleScreenShare,
     toggleLockRoom,
-    // leaveRoom,
-
-    // Screen sharing state
+    clearConnection,
     isScreenSharing,
-
-    // Room state
     isLocked,
-
-    // Speaking state
     speakingPeers,
     isSpeaking,
   };

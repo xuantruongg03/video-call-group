@@ -1,9 +1,8 @@
 
-import { Mic, MicOff, Video, VideoOff, MessageCircle, LogOut, ScreenShare, ScreenShareOff, Lock, LockOpen, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import CONSTANT from "@/lib/constant";
-import { sfuSocket } from "@/hooks/use-call";
+import { Button } from "./ui/button";
+
 interface VideoControlsProps {
   isMuted: boolean;
   isVideoOff: boolean;
@@ -14,6 +13,7 @@ interface VideoControlsProps {
   isScreenSharing: boolean;
   isLocked: boolean;
   onToggleLockRoom: () => void;
+  clearConnection: () => void;
 }
 
 export const VideoControls = ({
@@ -26,6 +26,7 @@ export const VideoControls = ({
   isScreenSharing,
   isLocked,
   onToggleLockRoom,
+  clearConnection,
 }: VideoControlsProps) => {
   const navigate = useNavigate();
 
@@ -34,14 +35,7 @@ export const VideoControls = ({
   }
 
   const handleLeaveRoom = () => {
-    // Clear local storage
-    localStorage.removeItem(CONSTANT.USER_NAME);
-    localStorage.removeItem(CONSTANT.PASSWORD);
-    localStorage.removeItem(CONSTANT.IS_LOCKED);
-    //Clear socket
-    sfuSocket.disconnect();
-    sfuSocket.removeAllListeners();
-    sfuSocket.close();
+    clearConnection();
     navigate('/room');
   };
 
