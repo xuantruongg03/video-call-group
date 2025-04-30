@@ -1,4 +1,4 @@
-
+import { useSelector } from "react-redux";
 import { Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -11,7 +11,6 @@ interface VideoControlsProps {
   onToggleChat: () => void;
   onToggleScreenShare: () => void;
   isScreenSharing: boolean;
-  isLocked: boolean;
   onToggleLockRoom: () => void;
   clearConnection: () => void;
 }
@@ -24,11 +23,11 @@ export const VideoControls = ({
   onToggleChat,
   onToggleScreenShare,
   isScreenSharing,
-  isLocked,
   onToggleLockRoom,
   clearConnection,
 }: VideoControlsProps) => {
   const navigate = useNavigate();
+  const room = useSelector((state: any) => state.room);
 
   const handleShareScreen = () => {
     onToggleScreenShare();
@@ -71,7 +70,7 @@ export const VideoControls = ({
       </Button>
       {/* Add lock room button */}
       <Button variant="outline" size="icon" onClick={onToggleLockRoom}>
-        {isLocked ? <Lock className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}
+        {room.isLocked ? <Lock className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}
       </Button>
       <Button variant="outline" size="icon" onClick={onToggleChat}>
         <MessageCircle className="h-5 w-5" />

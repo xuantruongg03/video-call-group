@@ -4,7 +4,7 @@ import { Device, types as mediasoupTypes } from "mediasoup-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 const SFU_URL = import.meta.env.VITE_SFU_URL || "http://localhost:3002";
 
 // Cấu hình TURN server (nên có)
@@ -39,7 +39,6 @@ export function useCall(roomId: string, password?: string) {
     { id: string; stream: MediaStream; metadata?: StreamMetadata }[]
   >([]);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
   const [speakingPeers, setSpeakingPeers] = useState<Set<string>>(new Set());
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isConnected, setIsConnected] = useState(sfuSocket.connected);
@@ -50,7 +49,6 @@ export function useCall(roomId: string, password?: string) {
   );
   const [transportReady, setTransportReady] = useState(false);
   const room = useSelector((state: any) => state.room);
-
   // Refs
   const deviceRef = useRef<Device | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -70,7 +68,7 @@ export function useCall(roomId: string, password?: string) {
   const connectRetriesRef = useRef({ send: 0, recv: 0 });
   const transportConnectingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const connectingTransportsRef = useRef<Set<string>>(new Set());
-
+  const dispatch = useDispatch();
   const setupDeviceAndTransports = useCallback(
     async (routerRtpCapabilities: mediasoupTypes.RtpCapabilities) => {
       try {
@@ -285,6 +283,7 @@ export function useCall(roomId: string, password?: string) {
         console.log(`Receive transport state changed: ${state}`);
         if (state === "connected") {
           processPendingStreams();
+          monitorNetworkQuality();
         }
       };
 
@@ -303,6 +302,34 @@ export function useCall(roomId: string, password?: string) {
       };
     }
   }, [recvTransportRef.current]);
+
+  const monitorNetworkQuality = () => {
+    if (recvTransportRef.current) {
+      const intervalId = setInterval(async () => {
+        const stats = await recvTransportRef.current.getStats();
+        console.log(stats);
+        
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            console.log(`Packet loss: ${report.packetsLost}`);
+            console.log(`Jitter: ${report.jitter}`);
+            console.log(`RTT: ${report.roundTripTime}`);
+            console.log(`Total packets: ${report.totalPacketsReceived}`);
+            console.log(`Packets received: ${report.packetsReceived}`);
+            console.log(`Packets lost: ${report.packetsLost}`);
+            console.log(`Total bytes received: ${report.bytesReceived}`);
+            console.log(`Total bytes sent: ${report.bytesSent}`);
+            console.log("FPS: ", report.framesDecoded);
+            console.log("Độ phân giải: ", report.resolution);
+            console.log("Tốc độ bit: ", report.bitrate);
+            
+          }
+        });
+      }, 5000);
+  
+      return () => clearInterval(intervalId);
+    }
+  };
 
   // Hàm tham gia phòng
   const joinRoom = useCallback(() => {
@@ -810,9 +837,7 @@ export function useCall(roomId: string, password?: string) {
       });
     };
 
-    const onPeerLeft = (data: { peerId: string }) => {
-      console.log(data.peerId);
-      
+    const onPeerLeft = (data: { peerId: string }) => { 
       // Remove speaking status if applicable
       setSpeakingPeers((prev) => {
         const newSpeakingPeers = new Set(prev);
@@ -853,7 +878,7 @@ export function useCall(roomId: string, password?: string) {
       lockedBy?: string;
       unlockedBy?: string;
     }) => {
-      setIsLocked(data.locked);
+      dispatch({ type: "JOIN_ROOM", payload: { isLocked: data.locked } });
       if (data.locked) {
         toast.info(`Phòng đã bị khóa bởi ${data.lockedBy}`);
       } else {
@@ -1106,7 +1131,6 @@ export function useCall(roomId: string, password?: string) {
 
       speechEventsRef.current.on("stopped_speaking", () => {
         setIsSpeaking(false);
-        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
         const userName = room.username;
         if (userName && isJoined) {
           sfuSocket.emit("sfu:stop-speaking", {
@@ -1123,15 +1147,40 @@ export function useCall(roomId: string, password?: string) {
       return true;
     } catch (error) {
       console.error("Error getting media:", error);
-      toast.error("Failed to access camera or microphone");
-      return false;
+      toast.error("Không thể truy cập camera hoặc microphone");
+      //Set camera và microphone về false
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      });
+
+      stream.getTracks().forEach((track) => {
+        track.enabled = false;
+      });
+
+      localStreamRef.current = stream;
+      setStreams((prev) => {
+        const filteredStreams = prev.filter((s) => s.id !== "local");
+        return [
+          {
+            id: "local",
+            stream,
+            metadata: { video: false, audio: false },
+          },
+          ...filteredStreams,
+        ];
+      });
+      return true;
     }
   }, [roomId, isJoined, publishTracks]);
 
   // Toggle room lock
   const toggleLockRoom = useCallback(
     (password?: string) => {
-      if (isLocked) {
+      if (room.isLocked) {
         sfuSocket.emit("sfu:unlock-room", { roomId });
       } else if (password) {
         // const userName = localStorage.getItem(CONSTANT.USER_NAME);
@@ -1143,7 +1192,7 @@ export function useCall(roomId: string, password?: string) {
         });
       }
     },
-    [roomId, isLocked]
+    [roomId, room.isLocked]
   );
 
   // Toggle screen sharing
@@ -1227,7 +1276,7 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.close();
     setIsJoined(false);
     setIsConnected(false);
-    setIsLocked(false);
+    dispatch({ type: "LEAVE_ROOM" });
     setStreams([]);
     setIsScreenSharing(false);
     setIsSpeaking(false);
@@ -1247,7 +1296,6 @@ export function useCall(roomId: string, password?: string) {
     toggleLockRoom,
     clearConnection,
     isScreenSharing,
-    isLocked,
     speakingPeers,
     isSpeaking,
   };

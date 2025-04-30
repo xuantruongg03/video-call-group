@@ -18,17 +18,16 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
-  const [password, setPassword] = useState('');
-  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, isLocked, clearConnection } = useCall(roomId ?? '');
+  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
-
+  
   useEffect(() => {
     if (!room.username) {
       navigate('/room');
     }
-  }, [isLocked]);
+  }, [room.username]);
 
   const handleToggleVideo = () => {
     toggleVideo();
@@ -41,13 +40,12 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   }
 
   const handleSetPassword = (password: string) => {
-    setPassword(password);
     setIsShowDialogPassword(false);
     toggleLockRoom(password);
   }
 
   const handleToggleLockRoom = () => {
-    if (!isLocked) {
+    if (!room.isLocked) {
       setIsShowDialogPassword(true);
     } else {
       toggleLockRoom();
@@ -68,7 +66,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
           <ParticipantsList roomId={roomId} />
         </div>
-        <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} />
+        <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} speakingPeers={Array.from(speakingPeers)} isSpeaking={isSpeaking} />
         <VideoControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}
@@ -77,7 +75,6 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
           onToggleScreenShare={toggleScreenShare}
           isScreenSharing={isScreenSharing}
-          isLocked={isLocked}
           onToggleLockRoom={handleToggleLockRoom}
           clearConnection={clearConnection}
         />

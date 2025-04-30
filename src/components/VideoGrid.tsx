@@ -1,5 +1,5 @@
 import { sfuSocket } from "@/hooks/use-call";
-import { MicOff, VideoOff, Volume2 } from "lucide-react";
+import { MicOff, Speaker, VideoOff, Volume2 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -14,7 +14,7 @@ interface StreamMetadata {
   }
 }
 
-export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: string; stream: MediaStream }[], isVideoOff: boolean, isMuted: boolean }) => {
+export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: { streams: { id: string; stream: MediaStream }[], isVideoOff: boolean, isMuted: boolean, speakingPeers: string[], isSpeaking: boolean }) => {
   const [streamMetadata, setStreamMetadata] = useState<StreamMetadata>({});
   const [activeStream, setActiveStream] = useState<string | null>(null);
   const isMobile = useIsMobile();
@@ -161,11 +161,11 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted }: { streams: { id: str
             <div
               className="relative bg-gray-800 rounded-lg overflow-hidden w-full h-full"
             >
-              {/* {isSpeaking && (
-                  <div className="absolute top-2 right-2 animate-pulse">
-                    <Volume2 className="h-5 w-5 text-green-400" />
-                  </div>
-                )} */}
+              {(speakingPeers.includes(stream.id) || isSpeaking) && (
+                <div className="absolute top-2 right-2 animate-pulse">
+                  <Speaker className="h-5 w-5 text-green-400" />
+                </div>
+              )}
               <video
                 ref={el => videoRefs.current[stream.id] = el}
                 autoPlay

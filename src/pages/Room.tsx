@@ -21,8 +21,6 @@ const Room = () => {
   const { checkRoomStatusMutation, isPending: isRoomStatusPending } = useCheckRoomStatus();
   const { verifyRoomMutation, isPending: isVerifyRoomPending } = useVerifyRoom();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [passwordAttempts, setPasswordAttempts] = useState(0);
-  const [roomPassword, setRoomPassword] = useState("");
   const dispatch = useDispatch();
 
   const checkUsername = async (userName: string) => {
@@ -44,14 +42,13 @@ const Room = () => {
   
   const handlePasswordSubmit = (password: string) => {
     setIsPasswordDialogOpen(false);
-    setRoomPassword(password);
-    handleJoinRoomWithPassword();
+    handleJoinRoomWithPassword(password);
   };
 
-  const handleJoinRoomWithPassword = async () => {
-    verifyRoomMutation({ roomId: roomId, password: roomPassword }).then((res) => {
+  const handleJoinRoomWithPassword = async (password: string) => {
+    verifyRoomMutation({ roomId: roomId, password: password }).then((res) => {
       if (res.data.valid) {
-        dispatch({ type: "JOIN_ROOM", payload: { username: userName, password: roomPassword, isLocked: true } });
+        dispatch({ type: "JOIN_ROOM", payload: { username: userName, password: password, isLocked: true } });
         navigate(`/room/${roomId}`);
       }
     });
