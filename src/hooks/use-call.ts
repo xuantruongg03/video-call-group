@@ -298,7 +298,7 @@ export function useCall(roomId: string, password?: string) {
             "connectionstatechange",
             handleConnectionChange
           );
-        }
+        } 
       };
     }
   }, [recvTransportRef.current]);
@@ -406,10 +406,11 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("connect", onConnectSuccess);
       sfuSocket.off("disconnect", onDisconnect);
       sfuSocket.off("connect_error", onConnectError);
+      sfuSocket.disconnect();
     };
   }, [joinRoom]);
 
-  // Set up socket listeners for SFU specific events
+  // Xử lý sự kiện
   useEffect(() => {
     if (!roomId) return;
 

@@ -39,7 +39,7 @@ const Room = () => {
     navigate(`/room/${newRoomId}`);
   };
 
-  
+
   const handlePasswordSubmit = (password: string) => {
     setIsPasswordDialogOpen(false);
     handleJoinRoomWithPassword(password);
@@ -79,6 +79,9 @@ const Room = () => {
         dispatch({ type: "JOIN_ROOM", payload: { username: userName } });
         navigate(`/room/${roomId}`);
       }
+    }).catch((err) => {
+      console.log(err);
+      toast.error("Phòng không tồn tại hoặc đã bị xóa!");
     });
   };
 
