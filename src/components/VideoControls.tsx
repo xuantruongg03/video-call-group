@@ -28,7 +28,6 @@ export const VideoControls = ({
 }: VideoControlsProps) => {
   const navigate = useNavigate();
   const room = useSelector((state: any) => state.room);
-  console.log(room);
   
   const handleShareScreen = () => {
     onToggleScreenShare();
@@ -40,7 +39,7 @@ export const VideoControls = ({
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-white p-4 rounded-full shadow-lg">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-4 bg-white p-4 rounded-full shadow-lg z-50">
       <Button
         variant="outline"
         size="icon"

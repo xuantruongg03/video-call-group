@@ -159,14 +159,14 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
             onClick={() => setActiveStream(stream.id)}
           >
             <div
-              className="relative bg-gray-800 rounded-lg overflow-hidden w-full h-full"
+              className={`relative bg-gray-800 rounded-lg overflow-hidden w-full h-full ${speakingPeers.includes(stream.id) || isSpeaking ? "border-2 border-green-500" : ""}`}
             >
               <video
                 ref={el => videoRefs.current[stream.id] = el}
                 autoPlay
                 playsInline
                 muted={stream.id === 'local' || micOff}
-                className={`w-full h-full object-contain ${speakingPeers.includes(stream.id) || isSpeaking ? "border-2 border-green-500" : ""}`}
+                className={`w-full h-full object-contain`}
                 style={{ opacity: videoOff ? 0 : 1 }}
               />
 
