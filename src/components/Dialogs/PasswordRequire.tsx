@@ -60,7 +60,7 @@ export const PasswordDialog = ({ isOpen, onClose, onSubmit, title = "Phòng đư
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="Nhập mật khẩu phòng họp"
-                        className="pr-10"
+                        className="pr-10 focus-visible:outline-blue-400 focus-visible:ring-0"
                         {...field}
                         autoFocus
                       />
@@ -94,7 +94,7 @@ export const PasswordDialog = ({ isOpen, onClose, onSubmit, title = "Phòng đư
               <Button 
                 type="submit" 
                 disabled={isSubmitting} 
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus-visible:outline-blue-400 focus-visible:ring-0"
               >
                 {isSubmitting ? "Đang xác thực..." : "Xác nhận"}
               </Button>

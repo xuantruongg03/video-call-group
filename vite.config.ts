@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => ({
       cert: fs.readFileSync("secrets/public-certificate.pem"),
     },
     allowedHosts: [
-      "8fb0-42-1-85-88.ngrok-free.app", // Địa chỉ ngrok của bạn
-      "localhost", // Bạn có thể thêm localhost nếu cần
+      "8fb0-42-1-85-88.ngrok-free.app", 
+      "localhost", 
     ],
   },
   plugins: [

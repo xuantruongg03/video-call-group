@@ -174,7 +174,7 @@ const Room = () => {
                       </div>
                       <Input
                         placeholder="Nhập tên hiển thị"
-                        className="pl-10 text-lg h-12 border-2 border-gray-200 focus:outline-blue-400"
+                        className="pl-10 text-lg h-12  border-gray-200 focus-visible:outline-blue-400 focus-visible:ring-0"
                         maxLength={CONSTANT.USER_NAME_MAX_LENGTH}
                         value={userName}
                         onChange={(e) => {
@@ -189,7 +189,7 @@ const Room = () => {
                       </div>
                       <Input
                         placeholder="Nhập mã phòng"
-                        className="pl-10 text-lg h-12 border-2 border-gray-200 focus:outline-blue-400"
+                        className="pl-10 text-lg h-12 border-2 border-gray-200 focus-visible:outline-blue-400 focus-visible:ring-0"
                         maxLength={CONSTANT.ROOM_ID_LENGTH}
                         minLength={CONSTANT.ROOM_ID_LENGTH}
                         value={roomId}
@@ -198,7 +198,7 @@ const Room = () => {
                     </div>
                     <Button
                       onClick={handleJoinRoom}
-                      className="h-12 bg-blue-600 hover:bg-blue-700"
+                      className="h-12 bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-400 focus-visible:ring-0"
                       disabled={isPending || isRoomStatusPending || isVerifyRoomPending || !roomId.trim()}
                     >
                       {isPending || isRoomStatusPending || isVerifyRoomPending ? "Đang tham gia..." : "Tham gia phòng"}
@@ -212,7 +212,7 @@ const Room = () => {
                     <Button
                       onClick={handleCreateRoom}
                       variant="outline"
-                      className="h-12 border-2 border-blue-200 text-blue-600 hover:text-blue-700"
+                      className="h-12 border-2 border-blue-200 text-blue-600 hover:text-blue-700 focus-visible:outline-blue-400 focus-visible:ring-0"
                     >
                       Tạo phòng mới
                     </Button>

@@ -307,21 +307,23 @@ export function useCall(roomId: string, password?: string) {
     if (recvTransportRef.current) {
       const intervalId = setInterval(async () => {
         const stats = await recvTransportRef.current.getStats();
-        console.log(stats);
-        
         stats.forEach(report => {
           if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            console.log(`Packet loss: ${report.packetsLost}`);
-            console.log(`Jitter: ${report.jitter}`);
-            console.log(`RTT: ${report.roundTripTime}`);
-            console.log(`Total packets: ${report.totalPacketsReceived}`);
-            console.log(`Packets received: ${report.packetsReceived}`);
-            console.log(`Packets lost: ${report.packetsLost}`);
-            console.log(`Total bytes received: ${report.bytesReceived}`);
-            console.log(`Total bytes sent: ${report.bytesSent}`);
-            console.log("FPS: ", report.framesDecoded);
-            console.log("Độ phân giải: ", report.resolution);
-            console.log("Tốc độ bit: ", report.bitrate);
+            // console.log(`Packet loss: ${report.packetsLost}`);
+            // console.log(`Jitter: ${report.jitter}`);
+            // console.log(`RTT: ${report.roundTripTime}`);
+            // console.log(`Total packets: ${report.totalPacketsReceived}`);
+            // console.log(`Packets received: ${report.packetsReceived}`);
+            // console.log(`Packets lost: ${report.packetsLost}`);
+            // console.log(`Total bytes received: ${report.bytesReceived}`);
+            // console.log(`Total bytes sent: ${report.bytesSent}`);
+            // console.log("FPS: ", report.framesDecoded);
+            // console.log("Độ phân giải: ", report.resolution);
+            // console.log("Tốc độ bit: ", report.bitrate);
+            const upBps   = report.bytesSent   * 8 / (report.timestamp / 1000); // bps
+            const downBps = report.bytesReceived * 8 / (report.timestamp / 1000);
+            const rtt     = report.currentRoundTripTime * 1000;               // ms
+            console.log(`Up: ${upBps}bps, Down: ${downBps}bps, RTT: ${rtt}ms`);
             
           }
         });
@@ -406,7 +408,6 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("connect", onConnectSuccess);
       sfuSocket.off("disconnect", onDisconnect);
       sfuSocket.off("connect_error", onConnectError);
-      sfuSocket.disconnect();
     };
   }, [joinRoom]);
 
