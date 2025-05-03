@@ -18,6 +18,7 @@ interface StreamMetadata {
   audio: boolean;
   type?: string;
   isScreenShare?: boolean;
+  noCameraAvailable?: boolean;
 }
 
 interface Stream {
@@ -32,7 +33,7 @@ export const sfuSocket = io(SFU_URL, {
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 1000,
-  autoConnect: false
+  autoConnect: false,
 });
 export function useCall(roomId: string, password?: string) {
   const [streams, setStreams] = useState<
@@ -47,7 +48,6 @@ export function useCall(roomId: string, password?: string) {
   const [roomPassword, setRoomPassword] = useState<string | undefined>(
     password
   );
-  const [transportReady, setTransportReady] = useState(false);
   const room = useSelector((state: any) => state.room);
   // Refs
   const deviceRef = useRef<Device | null>(null);
@@ -63,6 +63,8 @@ export function useCall(roomId: string, password?: string) {
   const pendingStreamsRef = useRef<Stream[]>([]);
   const transportReadyRef = useRef<boolean>(false);
   const publishedKindsRef = useRef<{ video?: boolean; audio?: boolean }>({});
+  // useCall.ts – ngay cạnh các ref khác
+  const producerIdToRemoteId = useRef<Map<string, string>>(new Map());
 
   // Thêm refs (không phải useState) để không phá vỡ thứ tự hooks
   const connectRetriesRef = useRef({ send: 0, recv: 0 });
@@ -116,7 +118,11 @@ export function useCall(roomId: string, password?: string) {
     }
 
     try {
-      // Publish video track
+      // Kiểm tra xem camera có khả dụng không
+      const cameraAvailable =
+        localStreamRef.current.getVideoTracks().length > 0;
+
+      // Publish video track nếu có
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack && !publishedKindsRef.current.video) {
         const videoProducer = await sendTransportRef.current.produce({
@@ -133,16 +139,19 @@ export function useCall(roomId: string, password?: string) {
             video: true,
             audio: false,
             type: "webcam",
+            noCameraAvailable: false,
           },
         });
 
         producersRef.current.set(videoProducer.id, {
           producer: videoProducer,
           kind: "video",
+          streamId: videoProducer.id,
           appData: {
             video: true,
             audio: false,
             type: "webcam",
+            noCameraAvailable: false,
           },
         });
         publishedKindsRef.current.video = true;
@@ -160,6 +169,7 @@ export function useCall(roomId: string, password?: string) {
             video: false,
             audio: true,
             type: "mic",
+            noCameraAvailable: !cameraAvailable,
           },
         });
 
@@ -170,6 +180,7 @@ export function useCall(roomId: string, password?: string) {
             video: false,
             audio: true,
             type: "mic",
+            noCameraAvailable: !cameraAvailable,
           },
         });
         publishedKindsRef.current.audio = true;
@@ -283,7 +294,7 @@ export function useCall(roomId: string, password?: string) {
         console.log(`Receive transport state changed: ${state}`);
         if (state === "connected") {
           processPendingStreams();
-          monitorNetworkQuality();
+          // monitorNetworkQuality();
         }
       };
 
@@ -298,39 +309,62 @@ export function useCall(roomId: string, password?: string) {
             "connectionstatechange",
             handleConnectionChange
           );
-        } 
+        }
       };
     }
   }, [recvTransportRef.current]);
 
   const monitorNetworkQuality = () => {
+    let intervalId: NodeJS.Timeout | null = null;
+
     if (recvTransportRef.current) {
-      const intervalId = setInterval(async () => {
-        const stats = await recvTransportRef.current.getStats();
-        stats.forEach(report => {
-          if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            // console.log(`Packet loss: ${report.packetsLost}`);
-            // console.log(`Jitter: ${report.jitter}`);
-            // console.log(`RTT: ${report.roundTripTime}`);
-            // console.log(`Total packets: ${report.totalPacketsReceived}`);
-            // console.log(`Packets received: ${report.packetsReceived}`);
-            // console.log(`Packets lost: ${report.packetsLost}`);
-            // console.log(`Total bytes received: ${report.bytesReceived}`);
-            // console.log(`Total bytes sent: ${report.bytesSent}`);
-            // console.log("FPS: ", report.framesDecoded);
-            // console.log("Độ phân giải: ", report.resolution);
-            // console.log("Tốc độ bit: ", report.bitrate);
-            const upBps   = report.bytesSent   * 8 / (report.timestamp / 1000); // bps
-            const downBps = report.bytesReceived * 8 / (report.timestamp / 1000);
-            const rtt     = report.currentRoundTripTime * 1000;               // ms
-            console.log(`Up: ${upBps}bps, Down: ${downBps}bps, RTT: ${rtt}ms`);
-            
+      intervalId = setInterval(async () => {
+        try {
+          // Check if transport still exists and is connected before calling getStats
+          if (
+            !recvTransportRef.current ||
+            recvTransportRef.current.connectionState !== "connected"
+          ) {
+            // Transport no longer exists or is not connected, clear the interval
+            if (intervalId) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
+            return;
           }
-        });
+
+          const stats = await recvTransportRef.current.getStats();
+          stats.forEach((report) => {
+            if (report.type === "inbound-rtp" && report.kind === "video") {
+              const upBps = (report.bytesSent * 8) / (report.timestamp / 1000); // bps
+              const downBps =
+                (report.bytesReceived * 8) / (report.timestamp / 1000);
+              const rtt = report.currentRoundTripTime * 1000; // ms
+              console.log(
+                `Up: ${upBps}bps, Down: ${downBps}bps, RTT: ${rtt}ms`
+              );
+            }
+          });
+        } catch (error) {
+          console.error("Error monitoring network stats:", error);
+          // Error occurred, clear the interval
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        }
       }, 5000);
-  
-      return () => clearInterval(intervalId);
+
+      // Return cleanup function
+      return () => {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      };
     }
+
+    return () => {}; // Empty cleanup when no transport
   };
 
   // Hàm tham gia phòng
@@ -342,17 +376,12 @@ export function useCall(roomId: string, password?: string) {
       }
 
       setError(null);
-
-      // Get username from localStorage
-      // const userName = localStorage.getItem(CONSTANT.USER_NAME);
       const userName = room.username;
       if (!userName) {
         setError("Username not found");
         toast.error("Username not found");
         return;
       }
-
-      console.log(`Joining room ${roomId} as ${userName}`);
 
       // Join the room
       sfuSocket.emit("sfu:join", {
@@ -428,7 +457,7 @@ export function useCall(roomId: string, password?: string) {
       toast.error(err.message);
 
       if (err.code === "ROOM_PASSWORD_REQUIRED") {
-        hasJoinedRef.current = false; 
+        hasJoinedRef.current = false;
       }
     };
 
@@ -477,7 +506,7 @@ export function useCall(roomId: string, password?: string) {
             });
 
             sfuSocket.once("sfu:transport-connected", () => {
-              setTransportReady(true);
+              transportReadyRef.current = true;
               callback();
             });
 
@@ -498,7 +527,7 @@ export function useCall(roomId: string, password?: string) {
               sfuSocket.once("sfu:producer-created", (data) => {
                 producersRef.current.set(data.producerId, {
                   producerId: data.producerId,
-                  streamId: data.streamId, 
+                  streamId: data.streamId,
                   kind: data.kind,
                   appData: data.appData,
                 });
@@ -579,11 +608,10 @@ export function useCall(roomId: string, password?: string) {
 
             if (state === "connected") {
               transportReadyRef.current = true;
-              setTransportReady(true);
               sfuSocket.emit("sfu:get-streams", { roomId });
               if (pendingStreamsRef.current.length > 0) {
                 const pendingStreams = [...pendingStreamsRef.current];
-                pendingStreamsRef.current = []; 
+                pendingStreamsRef.current = [];
 
                 pendingStreams.forEach((stream) => {
                   consumeStream(stream);
@@ -598,7 +626,7 @@ export function useCall(roomId: string, password?: string) {
                 "Kết nối nhận video bị gián đoạn. Đang thử kết nối lại..."
               );
 
-              setTransportReady(false);
+              transportReadyRef.current = false;
 
               setTimeout(() => {
                 if (deviceRef.current?.loaded) {
@@ -652,19 +680,15 @@ export function useCall(roomId: string, password?: string) {
       producerId: string;
       kind: mediasoupTypes.MediaKind;
       rtpParameters: mediasoupTypes.RtpParameters;
+      metadata?: any;
     }) => {
       try {
         if (!recvTransportRef.current) {
-          throw new Error("Receive transport not initialized");
-        }
-        const existingConsumer = Array.from(consumersRef.current.values()).find(
-          (c) => c.streamId === data.streamId && c.kind === data.kind
-        );
-
-        if (existingConsumer) {
+          console.error("Receive transport not created yet");
           return;
         }
 
+        // Add the consumer
         const consumer = await recvTransportRef.current.consume({
           id: data.consumerId,
           producerId: data.producerId,
@@ -672,43 +696,21 @@ export function useCall(roomId: string, password?: string) {
           rtpParameters: data.rtpParameters,
         });
 
-        consumer.on("transportclose", () => {
-          console.log(`Consumer transport closed for ${data.consumerId}`);
-        });
-
-        // sfuSocket.emit("sfu:request-keyframe", { streamId: data.streamId });
-        // // Đảm bảo track được kích hoạt
-        // if (consumer.track) {
-        //   consumer.track.enabled = true;
-
-        //   // Nếu là video track, thử tăng ưu tiên
-        //   if (consumer.track.kind === "video") {
-        //     try {
-        //       consumer.track.contentHint = "motion";
-        //       consumer.track.enabled = true;
-        //     } catch (e) {
-        //       console.log("Content hint not supported");
-        //     }
-        //   }
-        // }
-
         consumersRef.current.set(data.consumerId, {
           consumer,
           streamId: data.streamId,
-          kind: data.kind,
+          metadata: data.metadata,
         });
 
-        setTimeout(() => {
-          sfuSocket.emit("sfu:resume-consumer", {
-            consumerId: data.consumerId,
-          });
-        }, 50);
-        if (!consumer.track) {
-          return;
-        }
+        // Resume the consumer immediately
+        sfuSocket.emit("sfu:resume-consumer", {
+          consumerId: data.consumerId,
+        });
 
+        // Make sure we're creating a consistent remoteId
         const remoteStreamId = makeRemoteId(data.streamId);
         let currentStream = remoteStreamsMapRef.current.get(remoteStreamId);
+        producerIdToRemoteId.current.set(data.producerId, remoteStreamId);
 
         if (currentStream) {
           try {
@@ -726,24 +728,67 @@ export function useCall(roomId: string, password?: string) {
           setStreams((prev) => {
             const streamIndex = prev.findIndex((s) => s.id === remoteStreamId);
 
+            // Extract publisherId and mediaType from streamId
+            const parts = data.streamId.split("-");
+            const publisherId = parts[0];
+            const mediaType = parts.slice(1).join("-");
+
+            // Find if we already have metadata for this stream
+            const streamsFromServer = pendingStreamsRef.current.find(
+              (s) => s.streamId === data.streamId
+            );
+
+            // Determine stream type attributes
+            const isAudioStream =
+              data.kind === "audio" || mediaType.includes("mic");
+            const isVideoStream =
+              data.kind === "video" || mediaType.includes("webcam");
+
+            // Detect audio-only scenario: if this is an audio stream and we don't have video streams
+            // from the same publisher
+            const publisherVideoStreams = prev.filter(
+              (s) =>
+                s.id.includes(publisherId) &&
+                s.stream.getVideoTracks().length > 0 &&
+                !s.id.includes("screen")
+            );
+
+            const isAudioOnly =
+              isAudioStream && publisherVideoStreams.length === 0;
+
+            // Prepare metadata with appropriate flags
+            const metadata = {
+              video: isVideoStream,
+              audio: isAudioStream,
+              type: isAudioStream
+                ? "mic"
+                : isVideoStream
+                ? "webcam"
+                : undefined,
+              noCameraAvailable:
+                data.metadata?.noCameraAvailable === true ||
+                streamsFromServer?.metadata?.noCameraAvailable === true ||
+                (isAudioOnly && mediaType.includes("mic")),
+            };
+
             if (streamIndex >= 0) {
               if (prev[streamIndex].stream !== currentStream) {
                 const updated = [...prev];
                 updated[streamIndex] = {
                   id: remoteStreamId,
                   stream: currentStream,
-                  metadata: { video: true, audio: true },
+                  metadata: metadata,
                 };
                 return updated;
               }
-              return prev; 
+              return prev;
             } else {
               return [
                 ...prev,
                 {
                   id: remoteStreamId,
                   stream: currentStream,
-                  metadata: { video: true, audio: true },
+                  metadata: metadata,
                 },
               ];
             }
@@ -777,18 +822,42 @@ export function useCall(roomId: string, password?: string) {
     };
 
     function makeRemoteId(streamId: string) {
-      const [publisherId, mediaType] = streamId.split("-"); 
-      return `remote-${publisherId}-${mediaType}`; 
+      if (!streamId.includes("-")) {
+        return `remote-${streamId}-unknown`;
+      }
+
+      const parts = streamId.split("-");
+      const publisherId = parts[0];
+      const mediaType = parts.slice(1).join("-");
+      const result = `remote-${publisherId}-${mediaType}`;
+      return result;
     }
 
     const onStreamAdded = (stream: Stream) => {
-      // const userName = localStorage.getItem(CONSTANT.USER_NAME);
-      const userName = room.username;
-      if (stream.publisherId !== userName) {
-        consumeStream(stream);
-      } else {
-        console.log(`Ignoring my own stream ${stream.streamId}`);
-      }
+      const metadata = {
+        ...stream.metadata,
+        video: stream.metadata?.video ?? false,
+        audio: stream.metadata?.audio ?? true,
+        type: stream.metadata?.type || "mic",
+        noCameraAvailable: stream.metadata?.noCameraAvailable === true,
+      };
+
+      // Update the metadata in pendingStreams
+      pendingStreamsRef.current = pendingStreamsRef.current.map((s) => {
+        if (s.streamId === stream.streamId) {
+          return {
+            ...s,
+            metadata: metadata,
+          };
+        }
+        return s;
+      });
+
+      // Consume the stream
+      consumeStream({
+        ...stream,
+        metadata: metadata,
+      });
     };
 
     const onStreamRemoved = (data: {
@@ -796,58 +865,41 @@ export function useCall(roomId: string, password?: string) {
       publisherId: string;
     }) => {
       const remoteStreamId = makeRemoteId(data.streamId);
-      
+
       const consumersToDelete: string[] = [];
       consumersRef.current.forEach((info, consumerId) => {
         if (info.streamId === data.streamId) {
           consumersToDelete.push(consumerId);
         }
       });
-      
+
       consumersToDelete.forEach((id) => consumersRef.current.delete(id));
 
-      setStreams((prev) => {
-        return prev.filter((s) => s.id !== remoteStreamId);
-      });
+      setStreams((prev) => prev.filter((s) => s.id !== remoteStreamId));
     };
 
     const onStreams = (availableStreams: Stream[]) => {
-      // Nhóm streams theo publisherId
-      const streamsByPublisher = new Map<string, Stream[]>();
-
       availableStreams.forEach((stream) => {
-        // Bỏ qua stream của mình
-        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
-        const userName = room.username;
-        if (stream.publisherId === userName) {
-          return;
-        }
-
-        // Thêm vào nhóm theo publisherId
-        if (!streamsByPublisher.has(stream.publisherId)) {
-          streamsByPublisher.set(stream.publisherId, []);
-        }
-        streamsByPublisher.get(stream.publisherId)!.push(stream);
-      });
-
-      // Tiêu thụ từng stream
-      streamsByPublisher.forEach((streams, publisherId) => {
-        // Tiêu thụ mỗi stream từ publisher này
-        streams.forEach((stream) => {
-          consumeStream(stream);
-        });
+        const updatedStream = {
+          ...stream,
+          metadata: {
+            ...stream.metadata,
+            noCameraAvailable:
+              stream.metadata.noCameraAvailable ||
+              (stream.metadata.type === "mic" &&
+                stream.metadata.noCameraAvailable === true),
+          },
+        };
+        consumeStream(updatedStream);
       });
     };
 
-    const onPeerLeft = (data: { peerId: string }) => { 
-      // Remove speaking status if applicable
+    const onPeerLeft = (data: { peerId: string }) => {
       setSpeakingPeers((prev) => {
         const newSpeakingPeers = new Set(prev);
         newSpeakingPeers.delete(data.peerId);
         return newSpeakingPeers;
       });
-
-      // Xóa stream từ remoteStreamsMap
       remoteStreamsMapRef.current.forEach((stream, id) => {
         if (id.includes(data.peerId)) {
           remoteStreamsMapRef.current.delete(id);
@@ -933,7 +985,6 @@ export function useCall(roomId: string, password?: string) {
 
         // Forcefully update the state and process pending streams immediately
         transportReadyRef.current = true;
-        setTransportReady(true);
 
         // Handle any streams waiting in the queue
         if (pendingStreamsRef.current.length > 0) {
@@ -962,6 +1013,39 @@ export function useCall(roomId: string, password?: string) {
       }
     };
 
+    // Thêm handler cho sự kiện stream-updated
+    const onStreamUpdated = (data: {
+      streamId: string;
+      publisherId: string;
+      metadata: any;
+    }) => {
+
+      setStreams((prev) => {
+        return prev.map((stream) => {
+          if (stream.id.includes(data.publisherId + "-" + data.metadata.type)) {
+            const updatedMetadata = { ...stream.metadata };
+            if(data.metadata.type === "mic") {
+              updatedMetadata.audio = data.metadata.audio;
+              
+            } else if(data.metadata.type === "webcam") {
+              updatedMetadata.video = data.metadata.video;
+            }
+
+            if (data.metadata.noCameraAvailable !== undefined) {
+              updatedMetadata.noCameraAvailable =
+                data.metadata.noCameraAvailable;
+            }
+
+            return {
+              ...stream,
+              metadata: updatedMetadata,
+            };
+          }
+          return stream;
+        });
+      })
+    };
+
     sfuSocket.on("sfu:error", onError);
     sfuSocket.on("sfu:router-capabilities", onRouterCapabilities);
     sfuSocket.on("sfu:rtp-capabilities-set", onRtpCapabilitiesSet);
@@ -978,6 +1062,7 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.on("sfu:user-stopped-speaking", onUserStoppedSpeaking);
     sfuSocket.on("sfu:room-locked", onRoomLocked);
     sfuSocket.on("sfu:transport-connected", onTransportConnected);
+    sfuSocket.on("sfu:stream-updated", onStreamUpdated);
 
     // Cleanup
     return () => {
@@ -997,6 +1082,7 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:user-stopped-speaking", onUserStoppedSpeaking);
       sfuSocket.off("sfu:room-locked", onRoomLocked);
       sfuSocket.off("sfu:transport-connected", onTransportConnected);
+      sfuSocket.off("sfu:stream-updated", onStreamUpdated);
     };
   }, [roomId, setupDeviceAndTransports, streams, consumeStream, publishTracks]);
 
@@ -1037,22 +1123,47 @@ export function useCall(roomId: string, password?: string) {
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
 
-        producersRef.current.forEach((info, streamId) => {
+        const currentStream = streams.find((s) => s.id === "local");
+        const currentAudioState = currentStream?.metadata?.audio;
+        producersRef.current.forEach((info, producerId) => {
           if (info.kind === "video") {
+            const streamId = info.streamId || producerId;
+
             sfuSocket.emit("sfu:update", {
-              streamId,
+              streamId: streamId,
               metadata: {
                 video: videoTrack.enabled,
+                type: "webcam",
+                noCameraAvailable: !videoTrack.enabled, 
               },
             });
           }
+        });
+
+        setStreams((prev) => {
+          return prev.map((stream) => {
+            if (stream.id === "local") {
+              const updatedMetadata = {
+                ...stream.metadata,
+                video: videoTrack.enabled,
+                noCameraAvailable: !videoTrack.enabled,
+                type: "webcam",
+                audio: currentAudioState,
+              };
+              return {
+                ...stream,
+                metadata: updatedMetadata,
+              };
+            }
+            return stream;
+          });
         });
 
         return videoTrack.enabled;
       }
     }
     return false;
-  }, []);
+  }, [streams]);
 
   // Toggle audio
   const toggleAudio = useCallback(() => {
@@ -1060,11 +1171,21 @@ export function useCall(roomId: string, password?: string) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
+        const videoTracks = localStreamRef.current.getVideoTracks();
+        const videoTrack = videoTracks.length > 0 ? videoTracks[0] : null;
+        const videoEnabled = videoTrack ? videoTrack.enabled : false;
 
-        producersRef.current.forEach((info, streamId) => {
+        const currentStream = streams.find((s) => s.id === "local");
+        const videoState = currentStream?.metadata?.video || false;
+        const noCameraState =
+          currentStream?.metadata?.noCameraAvailable ||
+          !videoEnabled ||
+          videoTracks.length === 0;
+        // Cập nhật cho tất cả producers audio
+        producersRef.current.forEach((info, producerId) => {
           if (info.kind === "audio") {
             sfuSocket.emit("sfu:update", {
-              streamId,
+              streamId: info.streamId || producerId,
               metadata: {
                 audio: audioTrack.enabled,
               },
@@ -1072,11 +1193,30 @@ export function useCall(roomId: string, password?: string) {
           }
         });
 
+        setStreams((prev) => {
+          return prev.map((stream) => {
+            if (stream.id === "local") {
+              const updatedMetadata = {
+                ...stream.metadata,
+                audio: audioTrack.enabled,
+                video: videoState,
+                noCameraAvailable: noCameraState,
+              };
+
+              return {
+                ...stream,
+                metadata: updatedMetadata,
+              };
+            }
+            return stream;
+          });
+        });
+
         return audioTrack.enabled;
       }
     }
     return false;
-  }, []);
+  }, [streams]);
 
   // Initialize local media
   const initializeLocalMedia = useCallback(async () => {
@@ -1085,99 +1225,153 @@ export function useCall(roomId: string, password?: string) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      stream.getTracks().forEach((track) => {
-        track.enabled = true;
-      });
-
-      localStreamRef.current = stream;
-      setStreams((prev) => {
-        const filteredStreams = prev.filter((s) => s.id !== "local");
-        return [
-          {
-            id: "local",
-            stream,
-            metadata: { video: true, audio: true },
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
           },
-          ...filteredStreams,
-        ];
-      });
+        });
 
-      if (speechEventsRef.current) {
-        speechEventsRef.current.stop();
+        stream.getTracks().forEach((track) => {
+          track.enabled = true;
+        });
+
+        localStreamRef.current = stream;
+        setStreams((prev) => {
+          const filteredStreams = prev.filter((s) => s.id !== "local");
+          return [
+            {
+              id: "local",
+              stream,
+              metadata: { video: true, audio: true, noCameraAvailable: false },
+            },
+            ...filteredStreams,
+          ];
+        });
+
+        if (speechEventsRef.current) {
+          speechEventsRef.current.stop();
+        }
+
+        speechEventsRef.current = hark(stream, {
+          threshold: -65,
+          interval: 100,
+        });
+
+        speechEventsRef.current.on("speaking", () => {
+          setIsSpeaking(true);
+          const userName = room.username;
+          if (userName && isJoined) {
+            sfuSocket.emit("sfu:my-speaking", {
+              roomId,
+              peerId: userName,
+            });
+          }
+        });
+
+        speechEventsRef.current.on("stopped_speaking", () => {
+          setIsSpeaking(false);
+          const userName = room.username;
+          if (userName && isJoined) {
+            sfuSocket.emit("sfu:stop-speaking", {
+              roomId,
+              peerId: userName,
+            });
+          }
+        });
+
+        if (sendTransportRef.current && deviceRef.current?.loaded) {
+          await publishTracks();
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error getting camera:", error);
+
+        // If we couldn't get video, try with audio only
+        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+
+        localStreamRef.current = audioOnlyStream;
+        setStreams((prev) => {
+          const filteredStreams = prev.filter((s) => s.id !== "local");
+          return [
+            {
+              id: "local",
+              stream: audioOnlyStream,
+              metadata: { video: false, audio: true, noCameraAvailable: true },
+            },
+            ...filteredStreams,
+          ];
+        });
+
+        // Publish audio-only track with noCameraAvailable flag
+        if (isJoined) {
+          publishAudioOnly();
+        }
+
+        return true;
       }
+    } catch (error) {
+      console.error("Error initializing local media:", error);
+      toast.error("Failed to initialize your camera and microphone");
+      return false;
+    }
+  }, [isJoined]);
 
-      speechEventsRef.current = hark(stream, {
-        threshold: -65,
-        interval: 100,
-      });
+  // Thêm hàm mới để publish chỉ audio khi không có camera
+  const publishAudioOnly = useCallback(async () => {
+    if (
+      !deviceRef.current?.loaded ||
+      !sendTransportRef.current ||
+      !localStreamRef.current
+    ) {
+      return false;
+    }
 
-      speechEventsRef.current.on("speaking", () => {
-        setIsSpeaking(true);
-        // const userName = localStorage.getItem(CONSTANT.USER_NAME);
-        const userName = room.username;
-        if (userName && isJoined) {
-          sfuSocket.emit("sfu:my-speaking", {
-            roomId,
-            peerId: userName,
-          });
-        }
-      });
+    try {
+      console.log("Publishing audio only tracks...");
 
-      speechEventsRef.current.on("stopped_speaking", () => {
-        setIsSpeaking(false);
-        const userName = room.username;
-        if (userName && isJoined) {
-          sfuSocket.emit("sfu:stop-speaking", {
-            roomId,
-            peerId: userName,
-          });
-        }
-      });
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
+      if (audioTrack && !publishedKindsRef.current.audio) {
+        const audioProducer = await sendTransportRef.current.produce({
+          track: audioTrack,
+          codecOptions: {
+            opusStereo: true,
+            opusDtx: true,
+          },
+          appData: {
+            video: false,
+            audio: true,
+            type: "mic",
+            noCameraAvailable: true, // Thông báo không có camera
+          },
+        });
 
-      if (sendTransportRef.current && deviceRef.current?.loaded) {
-        await publishTracks();
+        producersRef.current.set(audioProducer.id, {
+          producer: audioProducer,
+          kind: "audio",
+          appData: {
+            video: false,
+            audio: true,
+            type: "mic",
+            noCameraAvailable: true,
+          },
+        });
+        publishedKindsRef.current.audio = true;
       }
 
       return true;
     } catch (error) {
-      console.error("Error getting media:", error);
-      toast.error("Không thể truy cập camera hoặc microphone");
-      //Set camera và microphone về false
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      stream.getTracks().forEach((track) => {
-        track.enabled = false;
-      });
-
-      localStreamRef.current = stream;
-      setStreams((prev) => {
-        const filteredStreams = prev.filter((s) => s.id !== "local");
-        return [
-          {
-            id: "local",
-            stream,
-            metadata: { video: false, audio: false },
-          },
-          ...filteredStreams,
-        ];
-      });
-      return true;
+      console.error("Error publishing audio track:", error);
+      toast.error("Failed to publish your audio");
+      return false;
     }
-  }, [roomId, isJoined, publishTracks]);
+  }, []);
 
   // Toggle room lock
   const toggleLockRoom = useCallback(
@@ -1272,10 +1466,33 @@ export function useCall(roomId: string, password?: string) {
   }, [isScreenSharing]);
 
   const clearConnection = useCallback(() => {
+    sendTransportRef.current?.close();
+    recvTransportRef.current?.close();
+    producersRef.current.forEach(({ producer }) => producer.close());
+    consumersRef.current.forEach(({ consumer }) => consumer.close());
+
+    deviceRef.current = null;
+    localStreamRef.current = null;
+    screenStreamRef.current = null;
+    sendTransportRef.current = null;
+    recvTransportRef.current = null;
+    producersRef.current.clear();
+    consumersRef.current.clear();
+    speechEventsRef.current = null;
+    hasJoinedRef.current = false;
+    remoteStreamsMapRef.current.clear();
+    pendingStreamsRef.current = [];
+    transportReadyRef.current = false;
+    publishedKindsRef.current = {};
+    connectRetriesRef.current = { send: 0, recv: 0 };
+    transportConnectingTimerRef.current = null;
+    connectingTransportsRef.current.clear();
     sfuSocket.emit("sfu:leave-room", { roomId });
+    // sfuSocket.removeAllListeners();
     sfuSocket.disconnect();
-    sfuSocket.removeAllListeners();
     sfuSocket.close();
+    sfuSocket.io.opts.autoConnect = false;
+    sfuSocket.io.opts.reconnection = false;
     setIsJoined(false);
     setIsConnected(false);
     dispatch({ type: "LEAVE_ROOM" });
