@@ -30,19 +30,38 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     }
   }, [room.username]);
 
+  // useEffect(() => {
+  //   if (roomId && room.username) {
+  //     // Lấy danh sách người tham gia khi vào phòng
+  //     sfuSocket.emit('sfu:get-participants', { roomId });
+      
+  //     // Lập lịch lấy danh sách người tham gia định kỳ
+  //     const interval = setInterval(() => {
+  //       sfuSocket.emit('sfu:get-participants', { roomId });
+  //     }, 10000); // Mỗi 10 giây
+      
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [roomId, room.username]);
+
+  // Add this new useEffect to handle page unload
   useEffect(() => {
-    if (roomId && room.username) {
-      // Lấy danh sách người tham gia khi vào phòng
-      sfuSocket.emit('sfu:get-participants', { roomId });
-      
-      // Lập lịch lấy danh sách người tham gia định kỳ
-      const interval = setInterval(() => {
-        sfuSocket.emit('sfu:get-participants', { roomId });
-      }, 10000); // Mỗi 10 giây
-      
-      return () => clearInterval(interval);
-    }
-  }, [roomId, room.username]);
+    const handleBeforeUnload = () => {
+      if (roomId) {
+        sfuSocket.emit('sfu:leave-room', { roomId });
+        // sfuSocket.disconnect();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (roomId) {
+        clearConnection();
+      }
+    };
+  }, [roomId, clearConnection]);
 
   // Thêm useEffect để kiểm tra nếu không có camera
   useEffect(() => {
@@ -55,7 +74,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       const isVideoEnabled = hasVideoTracks && videoTracks[0].enabled;
       const hasCameraDisabled = localStream.metadata?.noCameraAvailable === true;
       
-      // Check if camera should be shown as off
+        // Check if camera should be shown as off
       if (hasCameraDisabled || !hasVideoTracks || !isVideoEnabled) {
         if (!isVideoOff) {
           console.log("Setting video off based on stream state");
@@ -68,12 +87,10 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
         }
       }
       
-      // Check audio tracks to determine mic status
       const audioTracks = localStream.stream.getAudioTracks();
       const hasAudioTracks = audioTracks.length > 0;
       const isAudioEnabled = hasAudioTracks && audioTracks[0].enabled;
       
-      // Update mic mute state based on actual track state and metadata
       if (!hasAudioTracks || !isAudioEnabled || localStream.metadata?.audio === false) {
         if (!isMuted) {
           console.log("Setting audio muted based on stream state");
@@ -90,12 +107,12 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
 
   const handleToggleVideo = () => {
     const videoEnabled = toggleVideo();
-    setIsVideoOff(!videoEnabled); // Use the returned value instead of toggling state directly
+    setIsVideoOff(!videoEnabled); 
   }
 
   const handleToggleAudio = () => {
     const audioEnabled = toggleAudio();
-    setIsMuted(!audioEnabled); // Use the returned value instead of toggling state directly
+    setIsMuted(!audioEnabled);
   }
 
   const handleSetPassword = (password: string) => {

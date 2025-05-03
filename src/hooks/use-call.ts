@@ -216,6 +216,9 @@ export function useCall(roomId: string, password?: string) {
     }
   }, []);
 
+  const networkMonitorCleanupRef = useRef<(() => void) | null>(null);
+
+  // Thêm sự kiện lắng nghe trạng thái kết nối
   useEffect(() => {
     const processPendingStreams = () => {
       if (
@@ -294,7 +297,15 @@ export function useCall(roomId: string, password?: string) {
         console.log(`Receive transport state changed: ${state}`);
         if (state === "connected") {
           processPendingStreams();
-          // monitorNetworkQuality();
+          
+          // Clean up any existing monitor before starting a new one
+          if (networkMonitorCleanupRef.current) {
+            networkMonitorCleanupRef.current();
+            networkMonitorCleanupRef.current = null;
+          }
+          
+          // Start monitoring and store the cleanup function
+          networkMonitorCleanupRef.current = monitorNetworkQuality();
         }
       };
 
@@ -310,6 +321,12 @@ export function useCall(roomId: string, password?: string) {
             handleConnectionChange
           );
         }
+        
+        // Clean up network monitoring when this effect is cleaned up
+        if (networkMonitorCleanupRef.current) {
+          networkMonitorCleanupRef.current();
+          networkMonitorCleanupRef.current = null;
+        }
       };
     }
   }, [recvTransportRef.current]);
@@ -320,12 +337,10 @@ export function useCall(roomId: string, password?: string) {
     if (recvTransportRef.current) {
       intervalId = setInterval(async () => {
         try {
-          // Check if transport still exists and is connected before calling getStats
           if (
             !recvTransportRef.current ||
             recvTransportRef.current.connectionState !== "connected"
           ) {
-            // Transport no longer exists or is not connected, clear the interval
             if (intervalId) {
               clearInterval(intervalId);
               intervalId = null;
@@ -1083,6 +1098,8 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:room-locked", onRoomLocked);
       sfuSocket.off("sfu:transport-connected", onTransportConnected);
       sfuSocket.off("sfu:stream-updated", onStreamUpdated);
+
+      
     };
   }, [roomId, setupDeviceAndTransports, streams, consumeStream, publishTracks]);
 
@@ -1500,6 +1517,11 @@ export function useCall(roomId: string, password?: string) {
     setIsScreenSharing(false);
     setIsSpeaking(false);
     setRoomPassword("");
+
+    if (networkMonitorCleanupRef.current) {
+      networkMonitorCleanupRef.current();
+      networkMonitorCleanupRef.current = null;
+    }
   }, []);
 
   return {

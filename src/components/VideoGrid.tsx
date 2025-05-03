@@ -1,19 +1,7 @@
-import { sfuSocket } from "@/hooks/use-call";
-import { MicOff, Speaker, VideoOff, Volume2 } from "lucide-react";
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-
-interface StreamMetadata {
-  [streamId: string]: {
-    publisherId: string;
-    metadata: {
-      video: boolean;
-      audio: boolean;
-      type?: string;
-      noCameraAvailable?: boolean;
-    }
-  }
-}
+import { MicOff, VideoOff } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 
 export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: { 
   streams: { id: string; stream: MediaStream; metadata?: any }[], 
@@ -22,13 +10,11 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
   speakingPeers: string[], 
   isSpeaking: boolean 
 }) => {
-  // const [streamMetadata, setStreamMetadata] = useState<StreamMetadata>({});
   const [activeStream, setActiveStream] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
-
   const streamMapRef = useRef<Map<string, MediaStream>>(new Map());
-
+  const room = useSelector((state: any) => state.room);
   const attachMediaStream = useCallback((id: string, stream: MediaStream) => {
     const videoElement = videoRefs.current[id];
     if (videoElement && videoElement.srcObject !== stream) {
@@ -36,33 +22,13 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     }
   }, []);
 
-  const isAudioOnly = useCallback((streamId: string) => {
-    const stream = streams.find(s => s.id === streamId);
-    if (!stream) return false;
-    
-    // Check stream metadata
-    const hasCameraFlag = stream.metadata?.noCameraAvailable === true;
-    
-    // Check if it's a mic stream by ID pattern
-    const isMicStream = streamId.includes('-mic-');
-    
-    // Check track types and status
-    const videoTracks = stream.stream.getVideoTracks();
-    const hasVideoTracks = videoTracks.length > 0;
-    const isVideoEnabled = hasVideoTracks && videoTracks[0].enabled;
-    const hasOnlyAudioTracks = stream.stream.getAudioTracks().length > 0 && 
-                              (!hasVideoTracks || !isVideoEnabled);
-    
-    return hasCameraFlag || isMicStream || hasOnlyAudioTracks;
-  }, [streams]);
-
   useEffect(() => {
     streams.forEach(({ id, stream }) => {
       streamMapRef.current.set(id, stream);
       attachMediaStream(id, stream);
     });
   }, [streams, attachMediaStream]);
-  
+
   const getParticipantStatus = (participantId: string) => {
     if (participantId === 'local') {
       const localStream = streams.find(s => s.id === 'local');
@@ -108,8 +74,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     const videoTracks = streamObj?.stream.getVideoTracks() || [];
     const videoEnabled = videoTracks.length > 0 && videoTracks[0].enabled;
     const hasNoVideoTracks = !streamObj || videoTracks.length === 0 || !videoEnabled;
-    console.log("hasNoVideoTracks", hasNoVideoTracks);
-    console.log("noCameraAvailable", noCameraAvailable);
     
     noCameraAvailable = noCameraAvailable || hasNoVideoTracks;
 
@@ -219,6 +183,8 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       <div className="hidden">
         {streams
           .filter(s => 
+            s.id !== 'local' && 
+            !s.id.includes('local-mic') &&
             !filteredStreams.some(f => f.id === s.id) && 
             (s.id.includes('-mic-') || s.id === 'audio')
           )
@@ -242,26 +208,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
           
           const isScreen = isScreenShare(stream.id);
           const userName = getUserName(stream.id);
-          
-          // Check if stream has audio tracks but no video tracks
-          // const hasAudioOnlyTracks = stream.stream.getAudioTracks().length > 0 && 
-          //                          stream.stream.getVideoTracks().length === 0;
-          
-          // Call the isAudioOnly function defined earlier
-          // const streamIsAudioOnly = isAudioOnly(stream.id);
-          
-          // Enhanced audio-only detection for more reliability
-          // const shouldShowAvatar = hasAudioOnlyTracks || 
-          //                   noCameraAvailable || 
-          //                   // streamIsAudioOnly ||
-          //                   stream.metadata?.noCameraAvailable === true ||
-          //                   stream.metadata?.video === false ||
-          //                   stream.metadata?.type === 'mic';
-          
-          // // Simplified condition - if ANY of these are true, show the avatar box
           const shouldShowNameBox = videoOff || 
-                                  //  shouldShowAvatar ||
-                                  //  stream.id.includes('-mic-') ||
                                    (stream.stream.getVideoTracks().length > 0 && !stream.stream.getVideoTracks()[0].enabled);
           return (
             <div
