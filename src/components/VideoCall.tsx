@@ -1,14 +1,14 @@
-import { useCall } from "@/hooks/use-call";
+import { sfuSocket, useCall } from "@/hooks/use-call";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { ChatSidebar } from "./ChatSidebar";
+import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
 import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
-import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
-import { sfuSocket } from "@/hooks/use-call";
+import { toast } from "sonner";
 
 interface VideoCallProps {
   roomId?: string;
@@ -18,6 +18,8 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [canToggleVideo, setCanToggleVideo] = useState(true);
+  const [canToggleAudio, setCanToggleAudio] = useState(true);
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
   const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking } = useCall(roomId ?? '');
   const navigate = useNavigate();
@@ -30,26 +32,10 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     }
   }, [room.username]);
 
-  // useEffect(() => {
-  //   if (roomId && room.username) {
-  //     // Lấy danh sách người tham gia khi vào phòng
-  //     sfuSocket.emit('sfu:get-participants', { roomId });
-      
-  //     // Lập lịch lấy danh sách người tham gia định kỳ
-  //     const interval = setInterval(() => {
-  //       sfuSocket.emit('sfu:get-participants', { roomId });
-  //     }, 10000); // Mỗi 10 giây
-      
-  //     return () => clearInterval(interval);
-  //   }
-  // }, [roomId, room.username]);
-
-  // Add this new useEffect to handle page unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (roomId) {
         sfuSocket.emit('sfu:leave-room', { roomId });
-        // sfuSocket.disconnect();
       }
     };
 
@@ -63,27 +49,23 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     };
   }, [roomId, clearConnection]);
 
-  // Thêm useEffect để kiểm tra nếu không có camera
   useEffect(() => {
-    // Kiểm tra stream local
     const localStream = streams.find(s => s.id === 'local');
     if (localStream) {
-      // Check the metadata and tracks to determine camera status
       const videoTracks = localStream.stream.getVideoTracks();
       const hasVideoTracks = videoTracks.length > 0;
       const isVideoEnabled = hasVideoTracks && videoTracks[0].enabled;
       const hasCameraDisabled = localStream.metadata?.noCameraAvailable === true;
       
-        // Check if camera should be shown as off
       if (hasCameraDisabled || !hasVideoTracks || !isVideoEnabled) {
         if (!isVideoOff) {
-          console.log("Setting video off based on stream state");
           setIsVideoOff(true);
+          setCanToggleVideo(false);
         }
       } else if (localStream.metadata?.video === true) {
         if (isVideoOff) {
-          console.log("Setting video on based on stream state");
           setIsVideoOff(false);
+          setCanToggleVideo(true);
         }
       }
       
@@ -93,26 +75,34 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       
       if (!hasAudioTracks || !isAudioEnabled || localStream.metadata?.audio === false) {
         if (!isMuted) {
-          console.log("Setting audio muted based on stream state");
           setIsMuted(true);
+          setCanToggleAudio(false);
         }
       } else if (localStream.metadata?.audio === true) {
         if (isMuted) {
-          console.log("Setting audio unmuted based on stream state");
           setIsMuted(false);
+          setCanToggleAudio(false);
         }
       }
     }
   }, [streams, isVideoOff, isMuted]);
 
   const handleToggleVideo = () => {
-    const videoEnabled = toggleVideo();
-    setIsVideoOff(!videoEnabled); 
+    if (canToggleVideo) {
+      const videoEnabled = toggleVideo();
+      setIsVideoOff(!videoEnabled); 
+    } else {
+      toast.error("Không thể chuyển trạng thái camera");
+    }
   }
 
   const handleToggleAudio = () => {
-    const audioEnabled = toggleAudio();
-    setIsMuted(!audioEnabled);
+    if (canToggleAudio) {
+      const audioEnabled = toggleAudio();
+      setIsMuted(!audioEnabled);
+    } else {
+      toast.error("Không thể chuyển trạng thái mic");
+    }
   }
 
   const handleSetPassword = (password: string) => {

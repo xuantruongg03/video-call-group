@@ -5,13 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
 import { useDispatch, useSelector } from "react-redux";
+import { useNetworkMonitor } from './use-network-monitor';
 const SFU_URL = import.meta.env.VITE_SFU_URL || "http://localhost:3002";
-
-// Cấu hình TURN server (nên có)
-const iceServers = [
-  { urls: "stun:freestun.net:3478" },
-  { urls: "turn:freestun.net:3478", username: "free", credential: "free" },
-];
 
 interface StreamMetadata {
   video: boolean;
@@ -19,6 +14,7 @@ interface StreamMetadata {
   type?: string;
   isScreenShare?: boolean;
   noCameraAvailable?: boolean;
+  noMicroAvailable?: boolean;
 }
 
 interface Stream {
@@ -27,7 +23,6 @@ interface Stream {
   metadata: StreamMetadata;
 }
 
-// Khởi tạo socket và tự động kết nối
 export const sfuSocket = io(SFU_URL, {
   transports: ["websocket"],
   reconnection: true,
@@ -45,11 +40,10 @@ export function useCall(roomId: string, password?: string) {
   const [isConnected, setIsConnected] = useState(sfuSocket.connected);
   const [isJoined, setIsJoined] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [roomPassword, setRoomPassword] = useState<string | undefined>(
-    password
-  );
+  // const [roomPassword, setRoomPassword] = useState<string | undefined>(
+  //   password
+  // );
   const room = useSelector((state: any) => state.room);
-  // Refs
   const deviceRef = useRef<Device | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -63,33 +57,44 @@ export function useCall(roomId: string, password?: string) {
   const pendingStreamsRef = useRef<Stream[]>([]);
   const transportReadyRef = useRef<boolean>(false);
   const publishedKindsRef = useRef<{ video?: boolean; audio?: boolean }>({});
-  // useCall.ts – ngay cạnh các ref khác
   const producerIdToRemoteId = useRef<Map<string, string>>(new Map());
 
-  // Thêm refs (không phải useState) để không phá vỡ thứ tự hooks
   const connectRetriesRef = useRef({ send: 0, recv: 0 });
   const transportConnectingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const connectingTransportsRef = useRef<Set<string>>(new Set());
   const dispatch = useDispatch();
+  
+  const { startMonitoring, stopMonitoring } = useNetworkMonitor({
+    transport: recvTransportRef.current,
+    onPoorNetworkDetected: () => {
+      if (localStreamRef.current) {
+        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+        if (videoTrack && videoTrack.enabled) {
+          toast.info("Mạng yếu, tắt camera");
+          toggleVideo();
+        }
+      }
+    },
+    onGoodNetworkDetected: () => {
+      
+    }
+  });
+
   const setupDeviceAndTransports = useCallback(
     async (routerRtpCapabilities: mediasoupTypes.RtpCapabilities) => {
       try {
-        // Create device if not already created
         if (!deviceRef.current) {
           deviceRef.current = new Device();
         }
 
-        // Load router RTP capabilities
         if (!deviceRef.current.loaded) {
           await deviceRef.current.load({ routerRtpCapabilities });
         }
 
-        // Send device's RTP capabilities to server
         sfuSocket.emit("sfu:set-rtp-capabilities", {
           rtpCapabilities: deviceRef.current.rtpCapabilities,
         });
 
-        // Thêm vào trong transport creation
         sfuSocket.emit("sfu:create-transport", {
           roomId,
           isProducer: true,
@@ -107,7 +112,6 @@ export function useCall(roomId: string, password?: string) {
     [roomId]
   );
 
-  // Publish local tracks
   const publishTracks = useCallback(async () => {
     if (
       !deviceRef.current?.loaded ||
@@ -118,9 +122,10 @@ export function useCall(roomId: string, password?: string) {
     }
 
     try {
-      // Kiểm tra xem camera có khả dụng không
       const cameraAvailable =
         localStreamRef.current.getVideoTracks().length > 0;
+      // Kiểm tra xem microphone có khả dụng không
+      // const microAvailable = localStreamRef.current.getAudioTracks().length > 0;
 
       // Publish video track nếu có
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
@@ -140,6 +145,7 @@ export function useCall(roomId: string, password?: string) {
             audio: false,
             type: "webcam",
             noCameraAvailable: false,
+            // noMicroAvailable: !microAvailable,
           },
         });
 
@@ -147,12 +153,13 @@ export function useCall(roomId: string, password?: string) {
           producer: videoProducer,
           kind: "video",
           streamId: videoProducer.id,
-          appData: {
-            video: true,
-            audio: false,
-            type: "webcam",
-            noCameraAvailable: false,
-          },
+          // appData: {
+          //   video: true,
+          //   audio: false,
+          //   type: "webcam",
+          //   noCameraAvailable: false,
+          //   // noMicroAvailable: !microAvailable,
+          // },
         });
         publishedKindsRef.current.video = true;
       }
@@ -170,18 +177,20 @@ export function useCall(roomId: string, password?: string) {
             audio: true,
             type: "mic",
             noCameraAvailable: !cameraAvailable,
+            noMicroAvailable: false,
           },
         });
 
         producersRef.current.set(audioProducer.id, {
           producer: audioProducer,
           kind: "audio",
-          appData: {
-            video: false,
-            audio: true,
-            type: "mic",
-            noCameraAvailable: !cameraAvailable,
-          },
+          // appData: {
+          //   video: false,
+          //   audio: true,
+          //   type: "mic",
+          //   noCameraAvailable: !cameraAvailable,
+          //   noMicroAvailable: false,
+          // },
         });
         publishedKindsRef.current.audio = true;
       }
@@ -215,8 +224,6 @@ export function useCall(roomId: string, password?: string) {
       console.error("Lỗi khi consume stream:", error);
     }
   }, []);
-
-  const networkMonitorCleanupRef = useRef<(() => void) | null>(null);
 
   // Thêm sự kiện lắng nghe trạng thái kết nối
   useEffect(() => {
@@ -253,18 +260,11 @@ export function useCall(roomId: string, password?: string) {
 
             // Thêm timeout để kiểm tra xem consumer có được tạo hay không
             const timeoutId = setTimeout(() => {
-              console.warn(
-                `⚠️ Không nhận được phản hồi tạo consumer cho stream ${stream.streamId} sau 5 giây`
-              );
-
               // Gửi lại yêu cầu
               if (
                 recvTransportRef.current &&
                 recvTransportRef.current.connectionState === "connected"
               ) {
-                console.log(
-                  `🔄 Thử lại yêu cầu consume cho stream ${stream.streamId}`
-                );
                 sfuSocket.emit("sfu:consume", {
                   streamId: stream.streamId,
                   transportId: recvTransportRef.current.id,
@@ -278,7 +278,7 @@ export function useCall(roomId: string, password?: string) {
             connectRetriesRef.current.recv = 0;
             connectRetriesRef.current.recv++;
             connectRetriesRef.current[streamKey] = timeoutId;
-          }, index * 300); // Tăng khoảng thời gian lên 300ms để tránh burst requests
+          }, index * 300);
         });
       } else {
         const reason = !recvTransportRef.current
@@ -287,25 +287,19 @@ export function useCall(roomId: string, password?: string) {
           ? `Transport trạng thái: ${recvTransportRef.current.connectionState}`
           : `Không có streams trong hàng đợi (${pendingStreamsRef.current.length})`;
 
-        console.log(`⚠️ Không thể xử lý streams đang chờ: ${reason}`);
+        console.log(`Không thể xử lý streams đang chờ: ${reason}`);
       }
     };
 
     // Thêm sự kiện lắng nghe trạng thái kết nối
     if (recvTransportRef.current) {
       const handleConnectionChange = (state: string) => {
-        console.log(`Receive transport state changed: ${state}`);
         if (state === "connected") {
           processPendingStreams();
-          
-          // Clean up any existing monitor before starting a new one
-          if (networkMonitorCleanupRef.current) {
-            networkMonitorCleanupRef.current();
-            networkMonitorCleanupRef.current = null;
+          //Kiểm tra nếu có camera thì bắt đầu monitoring
+          if (localStreamRef.current?.getVideoTracks().length > 0) {
+            startMonitoring();
           }
-          
-          // Start monitoring and store the cleanup function
-          networkMonitorCleanupRef.current = monitorNetworkQuality();
         }
       };
 
@@ -321,66 +315,9 @@ export function useCall(roomId: string, password?: string) {
             handleConnectionChange
           );
         }
-        
-        // Clean up network monitoring when this effect is cleaned up
-        if (networkMonitorCleanupRef.current) {
-          networkMonitorCleanupRef.current();
-          networkMonitorCleanupRef.current = null;
-        }
       };
     }
   }, [recvTransportRef.current]);
-
-  const monitorNetworkQuality = () => {
-    let intervalId: NodeJS.Timeout | null = null;
-
-    if (recvTransportRef.current) {
-      intervalId = setInterval(async () => {
-        try {
-          if (
-            !recvTransportRef.current ||
-            recvTransportRef.current.connectionState !== "connected"
-          ) {
-            if (intervalId) {
-              clearInterval(intervalId);
-              intervalId = null;
-            }
-            return;
-          }
-
-          const stats = await recvTransportRef.current.getStats();
-          stats.forEach((report) => {
-            if (report.type === "inbound-rtp" && report.kind === "video") {
-              const upBps = (report.bytesSent * 8) / (report.timestamp / 1000); // bps
-              const downBps =
-                (report.bytesReceived * 8) / (report.timestamp / 1000);
-              const rtt = report.currentRoundTripTime * 1000; // ms
-              console.log(
-                `Up: ${upBps}bps, Down: ${downBps}bps, RTT: ${rtt}ms`
-              );
-            }
-          });
-        } catch (error) {
-          console.error("Error monitoring network stats:", error);
-          // Error occurred, clear the interval
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-        }
-      }, 5000);
-
-      // Return cleanup function
-      return () => {
-        if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      };
-    }
-
-    return () => {}; // Empty cleanup when no transport
-  };
 
   // Hàm tham gia phòng
   const joinRoom = useCallback(() => {
@@ -398,11 +335,10 @@ export function useCall(roomId: string, password?: string) {
         return;
       }
 
-      // Join the room
       sfuSocket.emit("sfu:join", {
         roomId,
         peerId: userName,
-        password: roomPassword,
+        password: room.password,
       });
 
       hasJoinedRef.current = true;
@@ -411,14 +347,14 @@ export function useCall(roomId: string, password?: string) {
       setError(error.message || "Lỗi khi tham gia phòng");
       toast.error(error.message || "Lỗi khi tham gia phòng");
     }
-  }, [roomId, roomPassword]);
+  }, [roomId]);
 
   // Thiết lập password phòng
-  useEffect(() => {
-    if (room.password) {
-      setRoomPassword(room.password);
-    }
-  }, [room.password]);
+  // useEffect(() => {
+  //   if (room.password) {
+  //     setRoomPassword(room.password);
+  //   }
+  // }, [room.password]);
 
   // Xử lý kết nối socket và tham gia phòng
   useEffect(() => {
@@ -466,8 +402,7 @@ export function useCall(roomId: string, password?: string) {
       await setupDeviceAndTransports(data.routerRtpCapabilities);
     };
 
-    const onError = (err: { message: string; code: string }) => {
-      console.error("SFU error:", err);
+    const onError = (err: { message: string; code: string; streamId?: string }) => {
       setError(err.message);
       toast.error(err.message);
 
@@ -651,7 +586,6 @@ export function useCall(roomId: string, password?: string) {
                   sfuSocket.emit("sfu:create-transport", {
                     roomId,
                     isProducer: false,
-                    iceServers,
                   });
                 }
               }, 2000);
@@ -1034,15 +968,13 @@ export function useCall(roomId: string, password?: string) {
       publisherId: string;
       metadata: any;
     }) => {
-
       setStreams((prev) => {
         return prev.map((stream) => {
           if (stream.id.includes(data.publisherId + "-" + data.metadata.type)) {
             const updatedMetadata = { ...stream.metadata };
-            if(data.metadata.type === "mic") {
+            if (data.metadata.type === "mic") {
               updatedMetadata.audio = data.metadata.audio;
-              
-            } else if(data.metadata.type === "webcam") {
+            } else if (data.metadata.type === "webcam") {
               updatedMetadata.video = data.metadata.video;
             }
 
@@ -1058,7 +990,72 @@ export function useCall(roomId: string, password?: string) {
           }
           return stream;
         });
-      })
+      });
+    };
+
+    // Thêm handler cho sự kiện presence
+    const onPresence = (data: {
+      peerId: string;
+      metadata: StreamMetadata;
+    }) => {
+      console.log(`Received presence from ${data.peerId} with metadata:`, data.metadata);
+      
+      // Tạo một ID độc nhất cho người dùng này
+      const remoteId = `remote-${data.peerId}-presence`;
+      
+      // Kiểm tra xem người dùng đã có stream khác (không phải presence) chưa
+      const hasRegularStream = streams.some(stream => 
+        stream.id.includes(data.peerId) && 
+        !stream.id.includes('presence')
+      );
+      
+      // Nếu đã có stream thông thường, không cần hiển thị presence
+      if (hasRegularStream) {
+        console.log(`User ${data.peerId} already has a regular stream, ignoring presence`);
+        return;
+      }
+      
+      // Kiểm tra nếu đã có stream presence cho người dùng này
+      const existingPresence = streams.find(s => s.id === remoteId);
+      if (existingPresence) {
+        // Nếu đã có rồi thì không cần thêm vào nữa để tránh render lại
+        console.log(`User ${data.peerId} already has a presence stream, not updating UI`);
+        return;
+      }
+      
+      // Tạo một MediaStream trống để hiển thị
+      const emptyStream = new MediaStream();
+      
+      // Thêm vào danh sách streams để hiển thị UI (chỉ khi chưa có)
+      setStreams((prev) => {
+        // Kiểm tra lần nữa để tránh race condition
+        const existingStreamIndex = prev.findIndex(s => s.id === remoteId);
+        
+        if (existingStreamIndex >= 0) {
+          return prev; // Người dùng đã tồn tại, không cần thêm
+        }
+        
+        // Kiểm tra và xóa bất kỳ stream presence cũ nào của cùng người dùng
+        const filteredStreams = prev.filter(s => 
+          !(s.id.includes(data.peerId) && s.id.includes('presence') && s.id !== remoteId)
+        );
+        
+        console.log(`Adding presence UI for ${data.peerId}`);
+        return [
+          ...filteredStreams,
+          {
+            id: remoteId,
+            stream: emptyStream,
+            metadata: {
+              ...data.metadata,
+              video: false,
+              audio: false,
+              noCameraAvailable: true,
+              noMicroAvailable: true,
+            },
+          },
+        ];
+      });
     };
 
     sfuSocket.on("sfu:error", onError);
@@ -1078,6 +1075,7 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.on("sfu:room-locked", onRoomLocked);
     sfuSocket.on("sfu:transport-connected", onTransportConnected);
     sfuSocket.on("sfu:stream-updated", onStreamUpdated);
+    sfuSocket.on("sfu:presence", onPresence); 
 
     // Cleanup
     return () => {
@@ -1098,8 +1096,7 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:room-locked", onRoomLocked);
       sfuSocket.off("sfu:transport-connected", onTransportConnected);
       sfuSocket.off("sfu:stream-updated", onStreamUpdated);
-
-      
+      sfuSocket.off("sfu:presence", onPresence); 
     };
   }, [roomId, setupDeviceAndTransports, streams, consumeStream, publishTracks]);
 
@@ -1122,16 +1119,16 @@ export function useCall(roomId: string, password?: string) {
   }, [isJoined]);
 
   // Function để cung cấp mật khẩu phòng
-  const provideRoomPassword = useCallback(
-    (password: string) => {
-      setRoomPassword(password);
-      hasJoinedRef.current = false;
-      if (sfuSocket.connected) {
-        joinRoom();
-      }
-    },
-    [joinRoom]
-  );
+  // const provideRoomPassword = useCallback(
+  //   (password: string) => {
+  //     // setRoomPassword(password);
+  //     hasJoinedRef.current = false;
+  //     if (sfuSocket.connected) {
+  //       joinRoom();
+  //     }
+  //   },
+  //   [joinRoom]
+  // );
 
   // Toggle video
   const toggleVideo = useCallback(() => {
@@ -1142,6 +1139,8 @@ export function useCall(roomId: string, password?: string) {
 
         const currentStream = streams.find((s) => s.id === "local");
         const currentAudioState = currentStream?.metadata?.audio;
+        const noMicroState = currentStream?.metadata?.noMicroAvailable || false;
+
         producersRef.current.forEach((info, producerId) => {
           if (info.kind === "video") {
             const streamId = info.streamId || producerId;
@@ -1151,7 +1150,8 @@ export function useCall(roomId: string, password?: string) {
               metadata: {
                 video: videoTrack.enabled,
                 type: "webcam",
-                noCameraAvailable: !videoTrack.enabled, 
+                noCameraAvailable: !videoTrack.enabled,
+                noMicroAvailable: noMicroState,
               },
             });
           }
@@ -1164,6 +1164,7 @@ export function useCall(roomId: string, password?: string) {
                 ...stream.metadata,
                 video: videoTrack.enabled,
                 noCameraAvailable: !videoTrack.enabled,
+                noMicroAvailable: noMicroState,
                 type: "webcam",
                 audio: currentAudioState,
               };
@@ -1198,6 +1199,8 @@ export function useCall(roomId: string, password?: string) {
           currentStream?.metadata?.noCameraAvailable ||
           !videoEnabled ||
           videoTracks.length === 0;
+        const noMicroState = currentStream?.metadata?.noMicroAvailable || false;
+
         // Cập nhật cho tất cả producers audio
         producersRef.current.forEach((info, producerId) => {
           if (info.kind === "audio") {
@@ -1205,6 +1208,7 @@ export function useCall(roomId: string, password?: string) {
               streamId: info.streamId || producerId,
               metadata: {
                 audio: audioTrack.enabled,
+                noMicroAvailable: noMicroState,
               },
             });
           }
@@ -1218,6 +1222,7 @@ export function useCall(roomId: string, password?: string) {
                 audio: audioTrack.enabled,
                 video: videoState,
                 noCameraAvailable: noCameraState,
+                noMicroAvailable: noMicroState,
               };
 
               return {
@@ -1235,7 +1240,7 @@ export function useCall(roomId: string, password?: string) {
     return false;
   }, [streams]);
 
-  // Initialize local media
+  // khởi tạo media
   const initializeLocalMedia = useCallback(async () => {
     try {
       if (localStreamRef.current) {
@@ -1243,6 +1248,7 @@ export function useCall(roomId: string, password?: string) {
       }
 
       try {
+        // Thử với cả video và audio
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: {
@@ -1262,7 +1268,12 @@ export function useCall(roomId: string, password?: string) {
             {
               id: "local",
               stream,
-              metadata: { video: true, audio: true, noCameraAvailable: false },
+              metadata: {
+                video: true,
+                audio: true,
+                noCameraAvailable: false,
+                noMicroAvailable: false,
+              },
             },
             ...filteredStreams,
           ];
@@ -1304,41 +1315,158 @@ export function useCall(roomId: string, password?: string) {
         }
 
         return true;
-      } catch (error) {
-        console.error("Error getting camera:", error);
+      } catch (errorAudioVideo) {
+        console.error("Error getting camera and mic:", errorAudioVideo);
 
-        // If we couldn't get video, try with audio only
-        const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
+        try {
+          // Nếu không thể lấy video, thử với audio
+          const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false,
+          });
 
-        localStreamRef.current = audioOnlyStream;
-        setStreams((prev) => {
-          const filteredStreams = prev.filter((s) => s.id !== "local");
-          return [
-            {
-              id: "local",
-              stream: audioOnlyStream,
-              metadata: { video: false, audio: true, noCameraAvailable: true },
-            },
-            ...filteredStreams,
-          ];
-        });
+          localStreamRef.current = audioOnlyStream;
+          setStreams((prev) => {
+            const filteredStreams = prev.filter((s) => s.id !== "local");
+            return [
+              {
+                id: "local",
+                stream: audioOnlyStream,
+                metadata: {
+                  video: false,
+                  audio: true,
+                  noCameraAvailable: true,
+                  noMicroAvailable: false,
+                },
+              },
+              ...filteredStreams,
+            ];
+          });
 
-        // Publish audio-only track with noCameraAvailable flag
-        if (isJoined) {
-          publishAudioOnly();
+          // Cấu hình phát hiện giọng nói
+          if (speechEventsRef.current) {
+            speechEventsRef.current.stop();
+          }
+
+          speechEventsRef.current = hark(audioOnlyStream, {
+            threshold: -65,
+            interval: 100,
+          });
+
+          speechEventsRef.current.on("speaking", () => {
+            setIsSpeaking(true);
+            const userName = room.username;
+            if (userName && isJoined) {
+              sfuSocket.emit("sfu:my-speaking", {
+                roomId,
+                peerId: userName,
+              });
+            }
+          });
+
+          speechEventsRef.current.on("stopped_speaking", () => {
+            setIsSpeaking(false);
+            const userName = room.username;
+            if (userName && isJoined) {
+              sfuSocket.emit("sfu:stop-speaking", {
+                roomId,
+                peerId: userName,
+              });
+            }
+          });
+
+          // Phát audio-only track với flag noCameraAvailable
+          if (isJoined) {
+            publishAudioOnly();
+          }
+
+          return true;
+        } catch (errorAudio) {
+          console.error("Error getting microphone:", errorAudio);
+
+          try {
+            // thử với video
+            const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            });
+
+            localStreamRef.current = videoOnlyStream;
+            setStreams((prev) => {
+              const filteredStreams = prev.filter((s) => s.id !== "local");
+              return [
+                {
+                  id: "local",
+                  stream: videoOnlyStream,
+                  metadata: {
+                    video: true,
+                    audio: false,
+                    noCameraAvailable: false,
+                    noMicroAvailable: true,
+                  },
+                },
+                ...filteredStreams,
+              ];
+            });
+
+            // phát video-only track với metadata
+            if (
+              isJoined &&
+              sendTransportRef.current &&
+              deviceRef.current?.loaded
+            ) {
+              publishVideoOnly();
+            }
+
+            toast.error(
+              "Không thể truy cập microphone, bạn sẽ không thể nói chuyện"
+            );
+            return true;
+          } catch (errorVideo) {
+            console.error(
+              "Error getting both camera and microphone:",
+              errorVideo
+            );
+
+            // tạo stream rỗng
+            const emptyStream = new MediaStream();
+            localStreamRef.current = emptyStream;
+
+            setStreams((prev) => {
+              const filteredStreams = prev.filter((s) => s.id !== "local");
+              return [
+                {
+                  id: "local",
+                  stream: emptyStream,
+                  metadata: {
+                    video: false,
+                    audio: false,
+                    noCameraAvailable: true,
+                    noMicroAvailable: true,
+                  },
+                },
+                ...filteredStreams,
+              ];
+            });
+
+            // phát media rỗng
+            if (isJoined) {
+              publicMediaEmpty();
+            }
+            toast.error("Không thể truy cập cả camera và microphone");
+            return false;
+          }
         }
-
-        return true;
       }
     } catch (error) {
       console.error("Error initializing local media:", error);
       toast.error("Failed to initialize your camera and microphone");
       return false;
     }
-  }, [isJoined]);
+  }, [isJoined, publishTracks, room.username, roomId]);
 
   // Thêm hàm mới để publish chỉ audio khi không có camera
   const publishAudioOnly = useCallback(async () => {
@@ -1365,7 +1493,7 @@ export function useCall(roomId: string, password?: string) {
             video: false,
             audio: true,
             type: "mic",
-            noCameraAvailable: true, // Thông báo không có camera
+            noCameraAvailable: true,
           },
         });
 
@@ -1390,7 +1518,90 @@ export function useCall(roomId: string, password?: string) {
     }
   }, []);
 
-  // Toggle room lock
+  const publicMediaEmpty = useCallback(async () => {
+    if (localStreamRef.current) {
+      const hasVideo = localStreamRef.current.getVideoTracks().length > 0;
+      const hasAudio = localStreamRef.current.getAudioTracks().length > 0;
+      
+      if (!hasVideo && !hasAudio) {
+        // Delay việc gửi presence để đảm bảo join đã hoàn thành
+        setTimeout(() => {
+          if (sfuSocket.connected) {
+            console.log("Sending initial presence notification after join");
+            sfuSocket.emit("sfu:presence", {
+              roomId,
+              peerId: room.username,
+              metadata: {
+                video: false,
+                audio: false,
+                type: "presence",
+                noCameraAvailable: true,
+                noMicroAvailable: true,
+              }
+            });
+            
+          }
+        }, 1500); // tăng độ trễ lên 1.5 giây để đảm bảo join đã hoàn thành
+      }
+    }
+    return false;
+  }, [roomId, room.username]);
+
+  // thêm hàm để phát video khi microphone thất bại
+  const publishVideoOnly = useCallback(async () => {
+    if (
+      !deviceRef.current?.loaded ||
+      !sendTransportRef.current ||
+      !localStreamRef.current
+    ) {
+      return false;
+    }
+
+    try {
+      console.log("Publishing video only tracks...");
+
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (videoTrack && !publishedKindsRef.current.video) {
+        const videoProducer = await sendTransportRef.current.produce({
+          track: videoTrack,
+          encodings: [
+            { maxBitrate: 100000 },
+            { maxBitrate: 300000 },
+            { maxBitrate: 900000 },
+          ],
+          codecOptions: {
+            videoGoogleStartBitrate: 1000,
+          },
+          appData: {
+            video: true,
+            audio: false,
+            type: "webcam",
+            noCameraAvailable: false,
+          },
+        });
+
+        producersRef.current.set(videoProducer.id, {
+          producer: videoProducer,
+          kind: "video",
+          streamId: videoProducer.id,
+          appData: {
+            video: true,
+            audio: false,
+            type: "webcam",
+            noCameraAvailable: false,
+          },
+        });
+        publishedKindsRef.current.video = true;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error publishing video track:", error);
+      toast.error("Failed to publish your video");
+      return false;
+    }
+  }, []);
+
   const toggleLockRoom = useCallback(
     (password?: string) => {
       if (room.isLocked) {
@@ -1408,7 +1619,6 @@ export function useCall(roomId: string, password?: string) {
     [roomId, room.isLocked]
   );
 
-  // Toggle screen sharing
   const toggleScreenShare = useCallback(async () => {
     try {
       if (isScreenSharing && screenStreamRef.current) {
@@ -1487,7 +1697,6 @@ export function useCall(roomId: string, password?: string) {
     recvTransportRef.current?.close();
     producersRef.current.forEach(({ producer }) => producer.close());
     consumersRef.current.forEach(({ consumer }) => consumer.close());
-
     deviceRef.current = null;
     localStreamRef.current = null;
     screenStreamRef.current = null;
@@ -1516,12 +1725,8 @@ export function useCall(roomId: string, password?: string) {
     setStreams([]);
     setIsScreenSharing(false);
     setIsSpeaking(false);
-    setRoomPassword("");
-
-    if (networkMonitorCleanupRef.current) {
-      networkMonitorCleanupRef.current();
-      networkMonitorCleanupRef.current = null;
-    }
+    // setRoomPassword("");
+    stopMonitoring();
   }, []);
 
   return {
@@ -1529,7 +1734,7 @@ export function useCall(roomId: string, password?: string) {
     isJoined,
     error,
     streams,
-    provideRoomPassword,
+    // provideRoomPassword,
     initializeLocalMedia,
     toggleVideo,
     toggleAudio,

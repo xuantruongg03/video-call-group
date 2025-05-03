@@ -1,7 +1,6 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MicOff, VideoOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: { 
   streams: { id: string; stream: MediaStream; metadata?: any }[], 
@@ -14,7 +13,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
   const isMobile = useIsMobile();
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
   const streamMapRef = useRef<Map<string, MediaStream>>(new Map());
-  const room = useSelector((state: any) => state.room);
   const attachMediaStream = useCallback((id: string, stream: MediaStream) => {
     const videoElement = videoRefs.current[id];
     if (videoElement && videoElement.srcObject !== stream) {
@@ -38,8 +36,8 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       const videoEnabled = videoTracks.length > 0 && videoTracks[0].enabled;
   
       return {
-        videoOff: isVideoOff, // Video off state based on the prop
-        micOff: isMuted, // Mic off state based on the prop
+        videoOff: isVideoOff, 
+        micOff: isMuted, 
         noCameraAvailable: metadata?.noCameraAvailable === true || videoTracks.length === 0 || !videoEnabled
       };
     }
@@ -69,7 +67,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       });
     }
   
-    // Ensure that video off state isn't wrongly triggered when mic is turned off
     const streamObj = streams.find(s => s.id.includes(publisherId));
     const videoTracks = streamObj?.stream.getVideoTracks() || [];
     const videoEnabled = videoTracks.length > 0 && videoTracks[0].enabled;
@@ -98,36 +95,28 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     ]
     : streams;
 
-  // Filter streams to avoid duplicate displays (prefer webcam over mic streams)
   const filteredStreams = useMemo(() => {
-    // First, sort streams by type (webcam > screen > mic)
     const sortedByType = [...sortedStreams].sort((a, b) => {
-      // Prefer local stream
       if (a.id === 'local') return -1;
       if (b.id === 'local') return 1;
       
-      // Prefer webcam streams
       if (a.id.includes('-webcam-') && !b.id.includes('-webcam-')) return -1;
       if (!a.id.includes('-webcam-') && b.id.includes('-webcam-')) return 1;
       
-      // Prefer screen streams
       if (a.id.includes('-screen-') && !b.id.includes('-screen-')) return -1;
       if (!a.id.includes('-screen-') && b.id.includes('-screen-')) return 1;
       
       return 0;
     });
     
-    // Then, filter out mic streams if the user has a webcam or screen stream
     const userStreams = new Map();
     
-    // First pass: collect all user's streams by username
     sortedByType.forEach(stream => {
       if (stream.id === 'local') {
         userStreams.set('local', [...(userStreams.get('local') || []), stream]);
         return;
       }
       
-      // Extract username from IDs like remote-Username-mic-timestamp or remote-Username-webcam-timestamp
       const parts = stream.id.split('-');
       if (parts.length >= 2) {
         const userName = parts[1];
@@ -135,12 +124,9 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       }
     });
     
-    // Second pass: for each user, if they have multiple streams, include only webcam/screen streams
-    // unless they only have mic streams
     const result = [];
     
     userStreams.forEach((streams, userName) => {
-      // Check if user has webcam or screen streams
       const hasVideoStream = streams.some(s => 
         s.id.includes('-webcam-') || 
         s.id.includes('-screen-') || 
@@ -148,13 +134,11 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       );
       
       if (hasVideoStream) {
-        // If they have video streams, include only those and filter out mic streams
         const videoStreams = streams.filter(s => 
           !s.id.includes('-mic-') || s.id === 'local'
         );
         result.push(...videoStreams);
       } else {
-        // If they only have mic streams, keep one of them (first one)
         const micStream = streams.find(s => s.id.includes('-mic-'));
         if (micStream) {
           result.push(micStream);
@@ -199,12 +183,10 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       
       <div className={`grid ${getGridColsClass()} gap-2 md:gap-4 h-[calc(100vh-120px)]`}>
         {filteredStreams.map((stream) => {
-          // Regular handling for other streams...
           const getUserName = (streamId: string) => {
             return streamId === 'local' ? 'Bạn' : streamId.split('-')[1];
           };
-          const { videoOff, micOff, noCameraAvailable } = getParticipantStatus(stream.id);
-          console.log(`Stream ${stream.id} have videoOff: ${videoOff}, micOff: ${micOff}, noCameraAvailable: ${noCameraAvailable}`);
+          const { videoOff, micOff } = getParticipantStatus(stream.id);
           
           const isScreen = isScreenShare(stream.id);
           const userName = getUserName(stream.id);
@@ -217,7 +199,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
               onClick={() => setActiveStream(stream.id)}
             >
               <div
-                className={`relative bg-gray-800 rounded-lg overflow-hidden w-full h-full ${speakingPeers.includes(stream.id) || isSpeaking ? "border-2 border-green-500" : ""}`}
+                className={`relative bg-gray-800 rounded-lg overflow-hidden w-full h-full ${speakingPeers.includes(stream.id.split('-')[1]) || isSpeaking ? "border-2 border-green-500" : ""}`}
               >
                 <video
                   ref={el => videoRefs.current[stream.id] = el}
@@ -251,7 +233,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
                   </div>
                 )}
                 {micOff && (
-                  <div className="bg-black/60 p-1.5 rounded-full">
+                  <div className="bg-black/60 p-1.5 rounded-full z-20">
                     <MicOff className="h-5 w-5 text-white" />
                   </div>
                 )}

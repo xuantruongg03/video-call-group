@@ -28,10 +28,6 @@ export const VideoControls = ({
 }: VideoControlsProps) => {
   const navigate = useNavigate();
   const room = useSelector((state: any) => state.room);
-  
-  const handleShareScreen = () => {
-    onToggleScreenShare();
-  }
 
   const handleLeaveRoom = () => {
     clearConnection();
@@ -63,12 +59,11 @@ export const VideoControls = ({
       <Button
         variant="outline"
         size="icon"
-        onClick={handleShareScreen}
+        onClick={onToggleScreenShare}
         className={isScreenSharing ? "bg-green-100 hover:bg-green-200" : ""}
       >
         {isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />}
       </Button>
-      {/* Add lock room button */}
       <Button variant="outline" size="icon" onClick={onToggleLockRoom}>
         {room.isLocked ? <Lock className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />}
       </Button>
