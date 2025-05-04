@@ -132,39 +132,31 @@ export const useWhiteboardSync = ({
     updateTimeoutRef.current = null;
   }, [roomId, sfuSocket]);
 
-  // Gửi dữ liệu khi có thay đổi phần tử với debounce
   const handleChange = useCallback((elements: any[], state: any) => {
     if (!elements || !Array.isArray(elements)) return;
     
-    // Lưu cập nhật mới nhất
     pendingUpdateRef.current = { elements: [...elements], state };
     
-    // Ngăn chặn gửi quá nhiều cập nhật bằng cách debounce
     const now = Date.now();
     if (now - lastUpdateRef.current < DEBOUNCE_INTERVAL) {
-      // Nếu đã có một timeout đang chờ, không cần làm gì
       if (updateTimeoutRef.current) return;
       
-      // Đặt lịch gửi cập nhật sau khoảng thời gian debounce
       updateTimeoutRef.current = setTimeout(() => {
         sendPendingUpdate();
       }, DEBOUNCE_INTERVAL);
       return;
     }
     
-    // Nếu đã qua đủ thời gian debounce, cập nhật ngay
     lastUpdateRef.current = now;
     sendPendingUpdate();
   }, [DEBOUNCE_INTERVAL, sendPendingUpdate]);
 
-  // Nhận dữ liệu whiteboard khi mở
   useEffect(() => {
     if (isOpen && excalidrawAPI) {
       sfuSocket.emit("whiteboard:get-data", { roomId });
     }
   }, [isOpen, roomId, sfuSocket, excalidrawAPI]);
 
-  // Lắng nghe dữ liệu đầy đủ khi server trả về
   useEffect(() => {
     if (!excalidrawAPI) return;
     
@@ -173,18 +165,15 @@ export const useWhiteboardSync = ({
       
       const { elements, state, version } = data.whiteboard;
       
-      // Cập nhật version mới nhất
       if (version) {
         lastVersionRef.current = version;
       }
 
       if (elements && Array.isArray(elements)) {
         try {
-          // Đảm bảo collaborators là Map
           const appState = {
             ...excalidrawAPI.getAppState(),
             ...(state || {}),
-            // Bảo toàn viewModeEnabled dựa trên quyền local
             viewModeEnabled: excalidrawAPI.getAppState().viewModeEnabled,
             collaborators: new Map()
           };

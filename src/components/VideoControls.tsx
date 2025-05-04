@@ -123,10 +123,9 @@ export const VideoControls = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-white p-3 rounded-full shadow-lg z-50">
-      
       <div 
         ref={scrollContainerRef}
-        className={isMobile ? "flex items-center gap-2 overflow-x-auto snap-x snap-mandatory max-w-[300px] scrollbar-hide" : "flex items-center gap-4"}
+        className={isMobile ? "flex items-center gap-2 overflow-x-auto snap-x snap-mandatory max-w-[300px] no-scrollbar" : "flex items-center gap-4"}
       >
         {controlButtons.map((button, index) => (
           <div key={button.key} className="snap-start">
