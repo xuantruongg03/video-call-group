@@ -44,7 +44,7 @@ export const ParticipantsList = ({ roomId }: { roomId: string }) => {
           </span>
         </Button>
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent showIcon>
         <SheetHeader>
           <SheetTitle>Người tham gia</SheetTitle>
         </SheetHeader>
@@ -54,7 +54,7 @@ export const ParticipantsList = ({ roomId }: { roomId: string }) => {
               key={user.peerId}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary"
             >
-              <span className="text-sm">{user.peerId === myName ? user.peerId + " - Bạn" : user.peerId}</span>
+              <span className="text-sm">{user.peerId === myName ? (user.isCreator ? user.peerId + " - Bạn (Người tổ chức)" : user.peerId + " - Bạn") : (user.isCreator ? user.peerId + " - Người tổ chức" : user.peerId)}</span>
               {user.peerId !== myName && isCreator && (
                 <Button
                   variant="ghost"

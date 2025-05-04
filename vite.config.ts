@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => ({
       "localhost", 
     ],
   },
+  define: {
+    "process.env.IS_PREACT": JSON.stringify("true"),
+  },
   plugins: [
     react(),
     mode === 'development' &&

@@ -8,6 +8,7 @@ import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
 import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
+import { Whiteboard } from "./WhiteBoard";
 import { toast } from "sonner";
 
 interface VideoCallProps {
@@ -16,6 +17,7 @@ interface VideoCallProps {
 
 export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [canToggleVideo, setCanToggleVideo] = useState(true);
@@ -25,7 +27,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
-  
+
   useEffect(() => {
     if (!room.username) {
       navigate('/room');
@@ -40,7 +42,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       if (roomId) {
@@ -56,7 +58,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       const hasVideoTracks = videoTracks.length > 0;
       const isVideoEnabled = hasVideoTracks && videoTracks[0].enabled;
       const hasCameraDisabled = localStream.metadata?.noCameraAvailable === true;
-      
+
       if (hasCameraDisabled || !hasVideoTracks || !isVideoEnabled) {
         if (!isVideoOff) {
           setIsVideoOff(true);
@@ -68,11 +70,11 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           setCanToggleVideo(true);
         }
       }
-      
+
       const audioTracks = localStream.stream.getAudioTracks();
       const hasAudioTracks = audioTracks.length > 0;
       const isAudioEnabled = hasAudioTracks && audioTracks[0].enabled;
-      
+
       if (!hasAudioTracks || !isAudioEnabled || localStream.metadata?.audio === false) {
         if (!isMuted) {
           setIsMuted(true);
@@ -90,7 +92,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const handleToggleVideo = () => {
     if (canToggleVideo) {
       const videoEnabled = toggleVideo();
-      setIsVideoOff(!videoEnabled); 
+      setIsVideoOff(!videoEnabled);
     } else {
       toast.error("Không thể chuyển trạng thái camera");
     }
@@ -139,6 +141,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onToggleMute={handleToggleAudio}
           onToggleVideo={handleToggleVideo}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
+          onToggleWhiteboard={() => setIsWhiteboardOpen(!isWhiteboardOpen)}
           onToggleScreenShare={toggleScreenShare}
           isScreenSharing={isScreenSharing}
           onToggleLockRoom={handleToggleLockRoom}
@@ -152,6 +155,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           roomId={roomId}
         />
       )}
+      <Whiteboard roomId={roomId} isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
     </div>
   );
 };
