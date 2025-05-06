@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { ChatSidebar } from "./ChatSidebar";
 import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
+import { NetworkMonitorDialog } from "./Dialogs/NetworkMonitorDialog";
 import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
@@ -23,7 +24,8 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [canToggleVideo, setCanToggleVideo] = useState(true);
   const [canToggleAudio, setCanToggleAudio] = useState(true);
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
-  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking } = useCall(roomId ?? '');
+  const [isNetworkMonitorOpen, setIsNetworkMonitorOpen] = useState(false);
+  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
@@ -129,6 +131,13 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onSetPassword={handleSetPassword}
         />
       )}
+      {isNetworkMonitorOpen && (
+        <NetworkMonitorDialog
+          isOpen={isNetworkMonitorOpen}
+          onClose={() => setIsNetworkMonitorOpen(false)}
+          transport={recvTransport}
+        />
+      )}
       <div className={`flex-1 p-2 md:p-4 ${isChatOpen && !isMobile ? 'mr-[320px]' : ''}`}>
         <div className="mb-2 md:mb-4 flex items-center justify-between">
           <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
@@ -145,6 +154,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onToggleScreenShare={toggleScreenShare}
           isScreenSharing={isScreenSharing}
           onToggleLockRoom={handleToggleLockRoom}
+          onToggleNetworkMonitor={() => setIsNetworkMonitorOpen(!isNetworkMonitorOpen)}
           clearConnection={clearConnection}
         />
       </div>

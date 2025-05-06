@@ -1,16 +1,11 @@
 import { sfuSocket } from "@/hooks/use-call";
 import useUser from "@/hooks/use-user";
-import { Excalidraw, TTDDialog } from "@excalidraw/excalidraw";
+import { Excalidraw } from "@excalidraw/excalidraw";
 import type {
-  NonDeletedExcalidrawElement
-} from "@excalidraw/excalidraw/element/types";
-import type {
-  AppState,
   ExcalidrawImperativeAPI,
-  Gesture
 } from "@excalidraw/excalidraw/types";
-import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
-import React, { Children, cloneElement, useEffect, useState, useRef } from "react";
+import { ChevronRight, Lock } from "lucide-react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { Button } from "./ui/button";
 import {
@@ -31,31 +26,26 @@ type PositionMouse = {
   tool: string;
 };
 
-type RemotePointer = {
-  position: PositionMouse;
-  peerId: string;
-};
-
 interface WhiteboardProps {
   roomId: string;
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
+export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardProps) => {
   const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [allowedUsers, setAllowedUsers] = useState<string[]>([]);
 
   const excalidrawRef = useRef<ExcalidrawImperativeAPI>(null);
   const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null);
   const [sheetFullyOpen, setSheetFullyOpen] = useState(false);
-  const [remotePointers, setRemotePointers] = useState<Record<string, RemotePointer>>({});
 
   const pointerDataRef = useRef<any>(null);
   const lastToolRef = useRef<string | null>(null);
   const isDraggingRef = useRef<boolean>(false);
   const isCreatorRef = useRef<boolean>(false);
   const canDrawRef = useRef<boolean>(false);
+  const usernameRef = useRef<string | null>(null);
   
   const throttledEmitPointer = useRef(
     throttle((roomId: string, position: PositionMouse) => {
@@ -83,9 +73,6 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
   useEffect(() => {
     if (excalidrawAPI) {
       excalidrawRef.current = excalidrawAPI;
-      
-      const scene = excalidrawAPI.getSceneElements();
-      console.log("Initial scene elements:", scene.length);
     }
   }, [excalidrawAPI]);
 
@@ -101,7 +88,6 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
       const state = excalidrawAPI.getAppState();
       
       if (elements.length > 0) {
-        console.log("Syncing after user action, elements:", elements.length);
         handleChangeRef.current([...elements], state);
       }
     };
@@ -121,14 +107,25 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
   const { users } = useUser(roomId);
   const room = useSelector((state: any) => state.room);
   const myName = room.username;
+  const isCreator = room.isCreator;
 
+  // Update permission state when it changes
   useEffect(() => {
-    const myData = users?.find(user => user.peerId === myName);
-    if (myData?.isCreator) {
-      isCreatorRef.current = true;
-      canDrawRef.current = true;
+    isCreatorRef.current = isCreator;
+    usernameRef.current = myName;
+    
+    const canDraw = isCreator || allowedUsers.includes(myName);
+    canDrawRef.current = canDraw;
+    
+    if (excalidrawAPI) {
+      excalidrawAPI.updateScene({
+        appState: {
+          ...excalidrawAPI.getAppState(),
+          viewModeEnabled: !canDraw
+        }
+      });
     }
-  }, [users, myName]);
+  }, [isCreator, myName, allowedUsers, excalidrawAPI]);
 
   useEffect(() => {
     if (!sfuSocket.connected) {
@@ -137,23 +134,20 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
 
     const onWhiteboardPermissions = (data: { allowed: string[] }) => {
       setAllowedUsers(data.allowed);
-      if (data.allowed.includes(myName) && !isCreatorRef.current) {
-        canDrawRef.current = true;
-      }
     };
 
     sfuSocket.on('whiteboard:permissions', onWhiteboardPermissions);
 
     return () => {
-      sfuSocket.off('whiteboard:permissions');
+      sfuSocket.off('whiteboard:permissions', onWhiteboardPermissions);
     };
-  }, [roomId, myName]);
+  }, []);
 
-  const handleUpdatePermissions = (allowedUsers: string[]) => {
-    setAllowedUsers(allowedUsers);
-    sfuSocket.emit('whiteboard:update-permissions', { roomId, allowed: allowedUsers });
-    setIsPermissionsDialogOpen(false);
-  };
+  useEffect(() => {
+    if (isOpen && sfuSocket.connected) {
+      sfuSocket.emit('whiteboard:get-permissions', { roomId });
+    }
+  }, [isOpen, roomId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -171,7 +165,6 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
 
     const handleRemotePointers = (data: any) => {
       if (!data || !data.pointers) {
-        console.warn("Invalid pointers data format:", data);
         return;
       }
 
@@ -237,18 +230,17 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
     };
   }, [excalidrawAPI, roomId]);
 
-  const handlePointerDown = (payload: any, event: any) => {
+  const handlePointerDown = () => {
     isDraggingRef.current = true;
   };
 
-  const handlePointerUp = (payload: any, event: any) => {
+  const handlePointerUp = () => {
     isDraggingRef.current = false;
     if (pointerDataRef.current?.pointer) {
       const elements = excalidrawAPI?.getSceneElements() || [];
       const state = excalidrawAPI?.getAppState();
       
       if (elements.length > 0 && state) {
-        console.log("Syncing on pointer up, elements:", elements.length);
         handleChangeRef.current([...elements], state);
       }
     }
@@ -293,7 +285,7 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
           const appState = {
             ...excalidrawAPI.getAppState(),
             ...(state || {}),
-            viewModeEnabled: excalidrawAPI.getAppState().viewModeEnabled,
+            viewModeEnabled: !canDrawRef.current,
             collaborators: new Map()
           };
           
@@ -301,8 +293,6 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
             elements,
             appState
           });
-        } else {
-          console.warn("Invalid elements data received:", elements);
         }
       } catch (err) {
         console.error("Error setting initial whiteboard data:", err);
@@ -316,17 +306,21 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
     };
   }, [isOpen, roomId, excalidrawAPI]);
 
+  const handleUpdatePermissions = useCallback((newAllowedUsers: string[]) => {
+    setAllowedUsers(newAllowedUsers);
+    sfuSocket.emit('whiteboard:update-permissions', { roomId, allowed: newAllowedUsers });
+    setIsPermissionsDialogOpen(false);
+  }, [roomId]);
+
   return (
     <>
       <Sheet
         open={isOpen}
         onOpenChange={onClose}
-        
       >
         <SheetContent
           className="sm:max-w-[800px] md:max-w-[1000px] w-full p-0"
           side="right"
-
           style={{ transition: "none" }}>
           <SheetHeader className="p-4 border-b">
             <div className="flex justify-between items-center">
@@ -376,51 +370,48 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
               touchAction: "none"
             }}>
               {sheetFullyOpen && (
-                <>
-                  <Excalidraw
-                    onChange={(elements, state) => {
-                      if (isDraggingRef.current) {
-                        if (elements.length > 0) {
-                          handleChangeRef.current([...elements], state);
-                        }
+                <Excalidraw
+                  key={`excalidraw-${roomId}`}
+                  onChange={(elements, state) => {
+                    if (isDraggingRef.current) {
+                      if (elements.length > 0) {
+                        handleChangeRef.current([...elements], state);
                       }
-                    }}
-                    excalidrawAPI={(api) => {
-                      console.log("Excalidraw API initialized");
-                      setExcalidrawAPI(api);
-                    }}
-                    initialData={{
-                      appState: {
-                        viewBackgroundColor: "#ffffff",
-                        currentItemStrokeColor: "#000000",
-                        collaborators: new Map(),
-                        // scrollX: 0,
-                        // scrollY: 0
-                      },
-                      scrollToContent: true
-                    }}
-                    onPointerUpdate={(payload) => {
-                      handlePointerUpdateRef.current(payload);
-                    }}
-                    onPointerDown={handlePointerDown}
-                    onPointerUp={handlePointerUp}
-                    viewModeEnabled={!canDrawRef.current && !isCreatorRef.current}
-                    zenModeEnabled={false}
-                    gridModeEnabled={false}
-                    theme="light"
-                    name="Whiteboard Session"
-                    UIOptions={{
-                      canvasActions: {
-                        loadScene: false,
-                        saveToActiveFile: true,
-                        export: false,
-                        clearCanvas: canDrawRef.current || isCreatorRef.current,
-                        changeViewBackgroundColor: true
-                      },
-                      tools: { image: false },
-                    }}
-                  />
-                </>
+                    }
+                  }}
+                  excalidrawAPI={(api) => {
+                    setExcalidrawAPI(api);
+                  }}
+                  initialData={{
+                    appState: {
+                      viewBackgroundColor: "#ffffff",
+                      currentItemStrokeColor: "#000000",
+                      collaborators: new Map(),
+                      viewModeEnabled: !canDrawRef.current
+                    },
+                    scrollToContent: true
+                  }}
+                  onPointerUpdate={(payload) => {
+                    handlePointerUpdateRef.current(payload);
+                  }}
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
+                  viewModeEnabled={!canDrawRef.current}
+                  zenModeEnabled={false}
+                  gridModeEnabled={false}
+                  theme="light"
+                  name="Whiteboard Session"
+                  UIOptions={{
+                    canvasActions: {
+                      loadScene: false,
+                      saveToActiveFile: true,
+                      export: false,
+                      clearCanvas: canDrawRef.current,
+                      changeViewBackgroundColor: true
+                    },
+                    tools: { image: false },
+                  }}
+                />
               )}
             </div>
           </div>
@@ -438,4 +429,4 @@ export const Whiteboard = ({ roomId, isOpen, onClose }: WhiteboardProps) => {
       )}
     </>
   );
-};
+});
