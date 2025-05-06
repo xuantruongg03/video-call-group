@@ -82,7 +82,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
         }
       });
     }
-    console.log(streams);
   
     const streamObj = streams.find(s => 
       s.id.includes(publisherId) && 
