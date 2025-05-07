@@ -4,6 +4,7 @@ export interface ActionRoom {
     username?: string;
     password?: string;
     isLocked?: boolean;
+    isCreator?: boolean;
   };
 }
 

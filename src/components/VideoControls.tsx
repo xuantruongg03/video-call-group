@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, VideoOff, Activity, Vote } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
@@ -15,6 +15,8 @@ interface VideoControlsProps {
   onToggleScreenShare: () => void;
   isScreenSharing: boolean;
   onToggleLockRoom: () => void;
+  onToggleNetworkMonitor: () => void;
+  onToggleVoting: () => void;
   clearConnection: () => void;
 }
 
@@ -28,6 +30,8 @@ export const VideoControls = ({
   onToggleScreenShare,
   isScreenSharing,
   onToggleLockRoom,
+  onToggleNetworkMonitor,
+  onToggleVoting,
   clearConnection,
 }: VideoControlsProps) => {
   const navigate = useNavigate();
@@ -104,6 +108,18 @@ export const VideoControls = ({
       key: "lock",
       onClick: onToggleLockRoom,
       icon: room.isLocked ? <Lock className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />,
+      className: ""
+    },
+    {
+      key: "network",
+      onClick: onToggleNetworkMonitor,
+      icon: <Activity className="h-5 w-5" />,
+      className: ""
+    },
+    {
+      key: "voting",
+      onClick: onToggleVoting,
+      icon: <Vote className="h-5 w-5" />,
       className: ""
     },
     {

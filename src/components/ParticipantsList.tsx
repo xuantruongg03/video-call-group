@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -8,23 +9,30 @@ import {
 } from "@/components/ui/sheet";
 import useUser from "@/hooks/use-user";
 import { Users, UserX } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 
-export const ParticipantsList = ({ roomId }: { roomId: string }) => {
-
-  const [isCreator, setIsCreator] = useState(false);
-  const { handleRemoveUser, users } = useUser(roomId);
+export const ParticipantsList = React.memo(({ roomId }: { roomId: string }) => {
+  // Lấy trạng thái isCreator từ Redux
   const room = useSelector((state: any) => state.room);
-  const myName = room.username;
-
-  useEffect(() => {
-    const myData = users?.find(user => user.peerId === myName);
-    if (myData?.isCreator) {
-      setIsCreator(true);
-    }
+  const { isCreator, username: myName } = room;
+  const { handleRemoveUser, users } = useUser(roomId);
+  
+  // Memoise danh sách người dùng để tránh re-render không cần thiết
+  const usersList = useMemo(() => {
+    if (!users) return [];
+    return users.map(user => ({
+      ...user,
+      isMe: user.peerId === myName,
+      displayName: user.peerId === myName 
+        ? (user.isCreator ? `${user.peerId} - Bạn (Người tổ chức)` : `${user.peerId} - Bạn`) 
+        : (user.isCreator ? `${user.peerId} - Người tổ chức` : user.peerId)
+    }));
   }, [users, myName]);
+
+  const userCount = useMemo(() => {
+    return usersList.length;
+  }, [usersList]);
 
   const handleRemoveParticipant = (peerId: string) => {
     if (isCreator) {
@@ -40,7 +48,7 @@ export const ParticipantsList = ({ roomId }: { roomId: string }) => {
         <Button variant="outline" size="icon" className="relative">
           <Users className="h-4 w-4" />
           <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-            {users?.length}
+            {userCount}
           </span>
         </Button>
       </SheetTrigger>
@@ -49,13 +57,13 @@ export const ParticipantsList = ({ roomId }: { roomId: string }) => {
           <SheetTitle>Người tham gia</SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-2">
-          {users?.map((user) => (
+          {usersList.map((user) => (
             <div
               key={user.peerId}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary"
             >
-              <span className="text-sm">{user.peerId === myName ? (user.isCreator ? user.peerId + " - Bạn (Người tổ chức)" : user.peerId + " - Bạn") : (user.isCreator ? user.peerId + " - Người tổ chức" : user.peerId)}</span>
-              {user.peerId !== myName && isCreator && (
+              <span className="text-sm">{user.displayName}</span>
+              {!user.isMe && isCreator && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -71,4 +79,4 @@ export const ParticipantsList = ({ roomId }: { roomId: string }) => {
       </SheetContent>
     </Sheet>
   );
-};
+});
