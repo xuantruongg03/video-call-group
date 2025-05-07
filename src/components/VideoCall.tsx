@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ChatSidebar } from "./ChatSidebar";
 import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
 import { NetworkMonitorDialog } from "./Dialogs/NetworkMonitorDialog";
+import { SecretVotingDialog } from "./Dialogs/SecretVotingDialog";
 import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
@@ -25,6 +26,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [canToggleAudio, setCanToggleAudio] = useState(true);
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
   const [isNetworkMonitorOpen, setIsNetworkMonitorOpen] = useState(false);
+  const [isVotingDialogOpen, setIsVotingDialogOpen] = useState(false);
   const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -122,6 +124,10 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     }
   }
 
+  const handleToggleVoting = () => {
+    setIsVotingDialogOpen(!isVotingDialogOpen);
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 relative">
       {isShowDialogPassword && (
@@ -136,6 +142,13 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           isOpen={isNetworkMonitorOpen}
           onClose={() => setIsNetworkMonitorOpen(false)}
           transport={recvTransport}
+        />
+      )}
+      {isVotingDialogOpen && (
+        <SecretVotingDialog
+          isOpen={isVotingDialogOpen}
+          onClose={() => setIsVotingDialogOpen(false)}
+          roomId={roomId || ''}
         />
       )}
       <div className={`flex-1 p-2 md:p-4 ${isChatOpen && !isMobile ? 'mr-[320px]' : ''}`}>
@@ -155,6 +168,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           isScreenSharing={isScreenSharing}
           onToggleLockRoom={handleToggleLockRoom}
           onToggleNetworkMonitor={() => setIsNetworkMonitorOpen(!isNetworkMonitorOpen)}
+          onToggleVoting={handleToggleVoting}
           clearConnection={clearConnection}
         />
       </div>
