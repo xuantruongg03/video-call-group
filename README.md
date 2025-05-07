@@ -32,7 +32,7 @@ This project is built with:
 
 ## Installation and Development
 
-Follow these steps to run the project on your computer:
+Follow these steps to run the project on your computer with dev enviroment:
 
 ```sh
 # Step 1: Clone the repository FE
@@ -48,7 +48,7 @@ cd video-call-group-be
 npm i
 
 # Step 4: Start the development server with auto-reload feature
-npm run dev
+npm run start:dev
 
 # Step 5: Move to FE
 cd video-call-group
@@ -57,7 +57,13 @@ cd video-call-group
 npm i
 
 # Step 7: Run
-npm run start:dev
+npm run dev
+```
+
+## Env
+```sh
+VITE_SERVER_URL = https://YOUR_IP:3000/api/v1
+VITE_SFU_URL = wss://YOUR_IP:3002
 ```
 
 ## System Architecture

@@ -1,11 +1,12 @@
+import { useChat } from "@/hooks/use-chat";
+import { useIsMobile } from "@/hooks/use-mobile";
+import CONSTANT from "@/lib/constant";
+import dayjs from "dayjs";
+import { Send, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Send, X } from "lucide-react";
-import { IoMdCloseCircleOutline } from "react-icons/io";
-import { useChat } from "@/hooks/use-chat";
-import CONSTANT from "@/lib/constant";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useSelector } from "react-redux";
 
 interface ChatSidebarProps {
   isOpen: boolean;
@@ -15,8 +16,8 @@ interface ChatSidebarProps {
 
 export const ChatSidebar = ({ isOpen, setIsOpen, roomId }: ChatSidebarProps) => {
   const [newMessage, setNewMessage] = useState("");
-  const username = localStorage.getItem(CONSTANT.USER_NAME);
-  const { messages, sendMessage } = useChat(roomId, username ?? '');
+  const room = useSelector((state: any) => state.room);
+  const { messages, sendMessage } = useChat(roomId, room.username ?? '');
   const isMobile = useIsMobile();
 
 
@@ -49,19 +50,19 @@ export const ChatSidebar = ({ isOpen, setIsOpen, roomId }: ChatSidebarProps) => 
           <div
             key={message.id}
             className={`flex flex-col ${
-              message.sender === "You" ? "items-end" : "items-start"
+              message.sender === room.username ? "items-end" : "items-start"
             }`}
           >
             <div
               className={`max-w-[80%] rounded-lg p-3 ${
-                message.sender === "You"
+                message.sender === room.username
                   ? "bg-blue-500 text-white"
                   : "bg-gray-100"
               }`}
             >
-              <p className="text-sm font-semibold">{message.sender}</p>
+              <p className="text-sm font-semibold">{message.sender === room.username ? "Bạn" : message.sender}</p>
               <p className="break-words">{message.text}</p>
-              <p className="text-xs opacity-70 mt-1">{message.timestamp}</p>
+              <p className="text-xs opacity-70 mt-1">{dayjs(message.timestamp).format(CONSTANT.TIME_FORMAT)}</p>
             </div>
           </div>
         ))}
