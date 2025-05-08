@@ -1,8 +1,8 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { MicOff, VideoOff, Users } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamTile } from "./StreamTile";
-import { AnimatePresence, motion } from "framer-motion";
 export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: {
   streams: { id: string; stream: MediaStream; metadata?: any }[],
   isVideoOff: boolean,
@@ -274,7 +274,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
   );
 
   return (
-    <>
+    <div id="video-grid" className="video-grid">
       <div className="hidden">
         {streams
           .filter(s =>
@@ -294,7 +294,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       </div>
 
       {isSingle ? (
-        <div className="flex items-center justify-center h-[calc(100vh-150px)] mt-7 w-full px-1">
+        <div className="flex items-center justify-center h-[calc(100vh-150px)] mt-7 w-full px-1 participant-container">
           <div className="h-[calc(100vh-120px)] w-full">
             <StreamTile
               stream={streamsToShow[0]}
@@ -341,7 +341,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
                   );
                 }
                 return (
-                  <div key={stream.id} className="aspect-video">
+                  <div key={stream.id} className="aspect-video participant-container">
                     <StreamTile
                       stream={stream}
                       userName={userName}
@@ -357,7 +357,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
                 );
               })}
               {remainingStreams.length > 0 && (
-                <div className="aspect-video">
+                <div className="aspect-video participant-container">
                   <RemainingTile />
                 </div>
               )}
@@ -365,6 +365,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };

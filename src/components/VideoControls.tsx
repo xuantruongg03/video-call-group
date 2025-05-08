@@ -1,9 +1,9 @@
-import { ChevronDown, ChevronUp, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, VideoOff, Activity, Vote } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Activity, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useEffect, useRef, useState } from "react";
 
 interface VideoControlsProps {
   isMuted: boolean;
@@ -17,6 +17,9 @@ interface VideoControlsProps {
   onToggleLockRoom: () => void;
   onToggleNetworkMonitor: () => void;
   onToggleVoting: () => void;
+  onToggleRecording: () => void;
+  isRecording: boolean;
+  isProcessing: boolean;
   clearConnection: () => void;
 }
 
@@ -32,6 +35,9 @@ export const VideoControls = ({
   onToggleLockRoom,
   onToggleNetworkMonitor,
   onToggleVoting,
+  onToggleRecording,
+  isRecording,
+  isProcessing,
   clearConnection,
 }: VideoControlsProps) => {
   const navigate = useNavigate();
@@ -99,6 +105,15 @@ export const VideoControls = ({
       className: isScreenSharing ? "bg-green-100 hover:bg-green-200" : ""
     },
     {
+      key: "record",
+      onClick: isProcessing ? undefined : onToggleRecording,
+      icon: isProcessing ? 
+        <Loader2 className="h-5 w-5 animate-spin" /> : 
+        (isRecording ? <Disc2 className="h-5 w-5" color="red" /> : <VideoIcon className="h-5 w-5" />),
+      className: isProcessing ? "bg-yellow-100 cursor-not-allowed" : 
+                (isRecording ? "bg-red-100 hover:bg-red-200" : "")
+    },
+    {
       key: "whiteboard",
       onClick: onToggleWhiteboard,
       icon: <PenLine className="h-5 w-5" />,
@@ -150,6 +165,7 @@ export const VideoControls = ({
               size="icon"
               onClick={button.onClick}
               className={button.className}
+              disabled={button.onClick === undefined}
             >
               {button.icon}
             </Button>

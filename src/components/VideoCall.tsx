@@ -1,8 +1,11 @@
 import { sfuSocket, useCall } from "@/hooks/use-call";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useScreenRecorder } from "@/hooks/use-screen-recorder";
+import { Disc2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { ChatSidebar } from "./ChatSidebar";
 import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
 import { NetworkMonitorDialog } from "./Dialogs/NetworkMonitorDialog";
@@ -11,7 +14,6 @@ import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { Whiteboard } from "./WhiteBoard";
-import { toast } from "sonner";
 
 interface VideoCallProps {
   roomId?: string;
@@ -27,6 +29,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
   const [isNetworkMonitorOpen, setIsNetworkMonitorOpen] = useState(false);
   const [isVotingDialogOpen, setIsVotingDialogOpen] = useState(false);
+  const { isRecording, isProcessing, toggleRecording } = useScreenRecorder();
   const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -128,6 +131,11 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     setIsVotingDialogOpen(!isVotingDialogOpen);
   }
 
+  const handleToggleRecording = () => {
+
+    toggleRecording();
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 relative">
       {isShowDialogPassword && (
@@ -154,7 +162,21 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       <div className={`flex-1 p-2 md:p-4 ${isChatOpen && !isMobile ? 'mr-[320px]' : ''}`}>
         <div className="mb-2 md:mb-4 flex items-center justify-between">
           <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
-          <ParticipantsList roomId={roomId} />
+          <div className="flex items-center gap-2">
+            {isRecording && !isProcessing && (
+              <div className="flex items-center gap-1 bg-red-100 px-2 py-1 rounded-full">
+                <Disc2 className="h-4 w-4 fill-white animate-pulse" color="red" />
+                <span className="text-xs text-red-600 font-medium">Đang ghi</span>
+              </div>
+            )}
+            {isProcessing && (
+              <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-full">
+                <Loader2 className="h-4 w-4 animate-spin" color="#f59e0b" />
+                <span className="text-xs text-yellow-600 font-medium">Đang xử lý</span>
+              </div>
+            )}
+            <ParticipantsList roomId={roomId} />
+          </div>
         </div>
         <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} speakingPeers={Array.from(speakingPeers)} isSpeaking={isSpeaking} />
         <VideoControls
@@ -169,6 +191,9 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onToggleLockRoom={handleToggleLockRoom}
           onToggleNetworkMonitor={() => setIsNetworkMonitorOpen(!isNetworkMonitorOpen)}
           onToggleVoting={handleToggleVoting}
+          onToggleRecording={handleToggleRecording}
+          isRecording={isRecording}
+          isProcessing={isProcessing}
           clearConnection={clearConnection}
         />
       </div>

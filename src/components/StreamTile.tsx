@@ -79,7 +79,7 @@ export const StreamTile = ({
         )}
       </div>
 
-      <span className="absolute bottom-1 left-1 text-xs text-white bg-black/60 px-1.5 py-0.5 rounded">
+      <span className="absolute bottom-2 left-2 text-xs text-white bg-black/60 px-1.5 py-0.5 rounded">
         {isScreen ? "Chia sẻ màn hình" : userName}
         {(audioStream || isScreen) && <span className="ml-1">🔊</span>}
       </span>

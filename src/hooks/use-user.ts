@@ -108,12 +108,14 @@ function useUser(roomId: string) {
                         return updatedUser;
                     });
                 });
+                console.log(data.peerId, myName);
                 
                 // Update Redux state
                 if (data.peerId === myName) {
-                    dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
-                    toast.success("Bạn đã trở thành chủ phòng");
-                    
+                    if(!room.isCreator) {
+                        dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
+                        toast.success("Bạn đã trở thành chủ phòng");
+                    }
                     // Reset whiteboard permissions
                     sfuSocket.emit('whiteboard:update-permissions', { roomId, allowed: [] });
                 } else {
@@ -136,7 +138,6 @@ function useUser(roomId: string) {
             }
         };
 
-        // Connect socket if needed
         if (!sfuSocket.connected) {
             try {
                 sfuSocket.connect();
