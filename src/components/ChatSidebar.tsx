@@ -60,7 +60,7 @@ export const ChatSidebar = ({ isOpen, setIsOpen, roomId }: ChatSidebarProps) => 
           : 'fixed right-0 top-0 h-screen w-80 bg-white border-l border-gray-200'
           } flex flex-col`}>
           <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Group Chat</h2>
+            <h2 className="text-lg font-semibold">Trò chuyện nhóm</h2>
             {isMobile && (
               <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen(false)}>
                 <X className="h-5 w-5" />

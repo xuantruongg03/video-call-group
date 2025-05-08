@@ -82,30 +82,35 @@ export const VideoControls = ({
   const controlButtons = [
     {
       key: "ghost",
+      title: "Ẩn bảng điều khiển",
       onClick: () => setShowControls(false),
       icon: <ChevronDown className="h-5 w-5" />,
       className: "bg-white hover:bg-gray-100"
     },
     {
       key: "mute",
+      title: "Tắt/bật mic",
       onClick: onToggleMute,
       icon: isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />,
       className: isMuted ? "bg-red-100 hover:bg-red-200" : ""
     },
     {
       key: "video",
+      title: "Tắt/bật camera",
       onClick: onToggleVideo,
       icon: isVideoOff ? <VideoOff className="h-5 w-5" /> : <Video className="h-5 w-5" />,
       className: isVideoOff ? "bg-red-100 hover:bg-red-200" : ""
     },
     {
       key: "screen",
+      title: "Chia sẻ màn hình",
       onClick: onToggleScreenShare,
       icon: isScreenSharing ? <ScreenShareOff className="h-5 w-5" /> : <ScreenShare className="h-5 w-5" />,
       className: isScreenSharing ? "bg-green-100 hover:bg-green-200" : ""
     },
     {
       key: "record",
+      title: "Ghi hình",
       onClick: isProcessing ? undefined : onToggleRecording,
       icon: isProcessing ? 
         <Loader2 className="h-5 w-5 animate-spin" /> : 
@@ -115,36 +120,42 @@ export const VideoControls = ({
     },
     {
       key: "whiteboard",
+      title: "Bảng trắng",
       onClick: onToggleWhiteboard,
       icon: <PenLine className="h-5 w-5" />,
       className: ""
     },
     {
       key: "lock",
+      title: "Khóa/Mở phòng",
       onClick: onToggleLockRoom,
       icon: room.isLocked ? <Lock className="h-5 w-5" /> : <LockOpen className="h-5 w-5" />,
       className: ""
     },
     {
       key: "network",
+      title: "Giám sát mạng",
       onClick: onToggleNetworkMonitor,
       icon: <Activity className="h-5 w-5" />,
       className: ""
     },
     {
       key: "voting",
+      title: "Bỏ phiếu",
       onClick: onToggleVoting,
       icon: <Vote className="h-5 w-5" />,
       className: ""
     },
     {
       key: "chat",
+      title: "Trò chuyện văn bản",
       onClick: onToggleChat,
       icon: <MessageCircle className="h-5 w-5" />,
       className: ""
     },
     {
       key: "leave",
+      title: "Rời phòng",
       onClick: handleLeaveRoom,
       icon: <LogOut className="h-5 w-5" />,
       className: "bg-red-500 hover:bg-red-600 text-white",
@@ -163,6 +174,7 @@ export const VideoControls = ({
             <Button
               variant={button.variant || "outline"}
               size="icon"
+              title={button.title}
               onClick={button.onClick}
               className={button.className}
               disabled={button.onClick === undefined}
