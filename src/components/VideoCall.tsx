@@ -14,6 +14,7 @@ import { ParticipantsList } from "./ParticipantsList";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { Whiteboard } from "./WhiteBoard";
+import { QuizSidebar } from "./QuizSidebar";
 
 interface VideoCallProps {
   roomId?: string;
@@ -22,6 +23,7 @@ interface VideoCallProps {
 export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [canToggleVideo, setCanToggleVideo] = useState(true);
@@ -128,11 +130,38 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   }
 
   const handleToggleVoting = () => {
+    if (isMobile) {
+      if(isChatOpen) setIsChatOpen(false);
+      if(isWhiteboardOpen) setIsWhiteboardOpen(false);
+      if(isQuizOpen) setIsQuizOpen(false);
+    }
     setIsVotingDialogOpen(!isVotingDialogOpen);
   }
 
-  const handleToggleRecording = () => {
+  const handleToggleQuiz = () => {
+    if (isMobile) {
+      if(isChatOpen) setIsChatOpen(false);
+      if(isWhiteboardOpen) setIsWhiteboardOpen(false);
+    }
+    setIsQuizOpen(!isQuizOpen);
+  };
 
+  const handleToggleChat = () => {
+    if (isMobile && isQuizOpen && !isChatOpen) {
+      setIsQuizOpen(false);
+    }
+    setIsChatOpen(!isChatOpen);
+  };
+
+  const handleToggleWhiteboard = () => {
+    if (isMobile) {
+      if (isChatOpen) setIsChatOpen(false);
+      if (isQuizOpen) setIsQuizOpen(false);
+    }
+    setIsWhiteboardOpen(!isWhiteboardOpen);
+  };
+
+  const handleToggleRecording = () => {
     toggleRecording();
   };
 
@@ -159,7 +188,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           roomId={roomId || ''}
         />
       )}
-      <div className={`flex-1 p-2 md:p-4 ${isChatOpen && !isMobile ? 'mr-[320px]' : ''}`}>
+      <div className={`flex-1 p-2 md:p-4 ${(isChatOpen) && !isMobile ? 'mr-[320px]' : ''}`}>
         <div className="mb-2 md:mb-4 flex items-center justify-between">
           <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
           <div className="flex items-center gap-2">
@@ -184,13 +213,14 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           isVideoOff={isVideoOff}
           onToggleMute={handleToggleAudio}
           onToggleVideo={handleToggleVideo}
-          onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          onToggleWhiteboard={() => setIsWhiteboardOpen(!isWhiteboardOpen)}
+          onToggleChat={handleToggleChat}
+          onToggleWhiteboard={handleToggleWhiteboard}
           onToggleScreenShare={toggleScreenShare}
           isScreenSharing={isScreenSharing}
           onToggleLockRoom={handleToggleLockRoom}
           onToggleNetworkMonitor={() => setIsNetworkMonitorOpen(!isNetworkMonitorOpen)}
           onToggleVoting={handleToggleVoting}
+          onToggleQuiz={handleToggleQuiz}
           onToggleRecording={handleToggleRecording}
           isRecording={isRecording}
           isProcessing={isProcessing}
@@ -205,6 +235,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
         />
       )}
       <Whiteboard roomId={roomId} isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
+      <QuizSidebar roomId={roomId || ''} isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
     </div>
   );
 };
