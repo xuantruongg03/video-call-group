@@ -91,7 +91,7 @@ export const SecretVotingDialog = ({
     resolver: zodResolver(voteSchema),
     defaultValues: {
       question: "",
-      options: ["", ""],
+      options: ["Tùy chọn 1", "Tùy chọn 2"],
     },
   });
 
@@ -133,9 +133,13 @@ export const SecretVotingDialog = ({
       sfuSocket.off("sfu:vote-session");
       sfuSocket.off("sfu:vote-results");
     };
-  }, [roomId, user.username]);
+  }, [roomId]);
 
   const handleSubmit = (values: z.infer<typeof voteSchema>) => {
+    if(values.options.length < 2) {
+      toast.error("Phải có ít nhất 2 tùy chọn");
+      return;
+    }
     if (!user.isCreator) {
       toast.error("Chỉ người tổ chức mới có thể tạo phiên bỏ phiếu");
       return;
@@ -301,7 +305,7 @@ export const SecretVotingDialog = ({
           {activeTab === "create" && (
             <motion.div
               key="create"
-              initial="hidden"
+              initial="visible"
               animate="visible"
               exit={{ opacity: 0, y: -10 }}
               variants={fadeIn}
@@ -353,7 +357,7 @@ export const SecretVotingDialog = ({
                     <motion.div 
                       className="space-y-2"
                       variants={staggerContainer}
-                      initial="hidden"
+                      initial="visible"
                       animate="visible"
                     >
                       <FormLabel>Các tùy chọn</FormLabel>
@@ -420,7 +424,7 @@ export const SecretVotingDialog = ({
                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                           <Button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || form.getValues("options").length < 2}
                             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus-visible:outline-blue-400 focus-visible:ring-0"
                           >
                             {isSubmitting ? "Đang xử lý..." : "Tạo phiên bỏ phiếu"}

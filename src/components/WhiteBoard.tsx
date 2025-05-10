@@ -105,6 +105,8 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
   }, [excalidrawAPI]);
 
   const { users } = useUser(roomId);
+  console.log(users);
+  
   const room = useSelector((state: any) => state.room);
   const myName = room.username;
   const isCreator = room.isCreator;
