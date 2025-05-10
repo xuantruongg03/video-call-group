@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
+import { QrCode } from "lucide-react";
 
 interface VideoControlsProps {
   isMuted: boolean;
@@ -22,6 +23,7 @@ interface VideoControlsProps {
   isRecording: boolean;
   isProcessing: boolean;
   clearConnection: () => void;
+  onShowQRCode: () => void;
 }
 
 export const VideoControls = ({
@@ -41,6 +43,7 @@ export const VideoControls = ({
   isRecording,
   isProcessing,
   clearConnection,
+  onShowQRCode,
 }: VideoControlsProps) => {
   const navigate = useNavigate();
   const room = useSelector((state: any) => state.room);
@@ -125,6 +128,12 @@ export const VideoControls = ({
       title: "Bảng trắng",
       onClick: onToggleWhiteboard,
       icon: <PenLine className="h-5 w-5" />,
+      className: ""
+    },
+    {
+      key: "qrcode",
+      onClick: onShowQRCode,
+      icon: <QrCode className="h-5 w-5" />,
       className: ""
     },
     {
