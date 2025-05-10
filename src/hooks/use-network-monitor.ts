@@ -1,23 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import CONSTANT from "@/lib/constant";
-
-interface NetworkStats {
-  upBps: number;
-  downBps: number;
-  rtt: number | null;
-  jitter: number | null;
-  isGoodNetwork: boolean;
-  isPoorNetwork: boolean;
-}
-
-interface UseNetworkMonitorProps {
-  transport: any;
-  onPoorNetworkDetected?: () => void;
-  onGoodNetworkDetected?: () => void;
-  onMediumNetworkDetected?: () => void;
-  interval?: number;
-}
+import { NetworkStats, UseNetworkMonitorProps } from "@/interfaces/network";
 
 export function useNetworkMonitor({
   transport,

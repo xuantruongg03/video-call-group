@@ -13,12 +13,10 @@ import { useSelector } from "react-redux";
 import { toast } from "sonner";
 
 export const ParticipantsList = React.memo(({ roomId }: { roomId: string }) => {
-  // Lấy trạng thái isCreator từ Redux
   const room = useSelector((state: any) => state.room);
   const { isCreator, username: myName } = room;
   const { handleRemoveUser, users } = useUser(roomId);
   
-  // Memoise danh sách người dùng để tránh re-render không cần thiết
   const usersList = useMemo(() => {
     if (!users) return [];
     return users.map(user => ({
