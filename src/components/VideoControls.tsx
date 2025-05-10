@@ -1,9 +1,10 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote, QrCode } from "lucide-react";
+import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
+import { QrCode } from "lucide-react";
 
 interface VideoControlsProps {
   isMuted: boolean;
