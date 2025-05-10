@@ -1,5 +1,5 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Activity, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
+import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,7 @@ interface VideoControlsProps {
   onToggleLockRoom: () => void;
   onToggleNetworkMonitor: () => void;
   onToggleVoting: () => void;
+  onToggleQuiz: () => void;
   onToggleRecording: () => void;
   isRecording: boolean;
   isProcessing: boolean;
@@ -35,6 +36,7 @@ export const VideoControls = ({
   onToggleLockRoom,
   onToggleNetworkMonitor,
   onToggleVoting,
+  onToggleQuiz,
   onToggleRecording,
   isRecording,
   isProcessing,
@@ -144,6 +146,13 @@ export const VideoControls = ({
       title: "Bỏ phiếu",
       onClick: onToggleVoting,
       icon: <Vote className="h-5 w-5" />,
+      className: ""
+    },
+    {
+      key: "quiz",
+      title: "Bài kiểm tra",
+      onClick: onToggleQuiz,
+      icon: <BookCheck className="h-5 w-5" />,
       className: ""
     },
     {
