@@ -979,19 +979,19 @@ export function useCall(roomId: string, password?: string) {
       });
     };
 
-    const onCreatorChanged = (data: { peerId: string, isCreator: boolean }) => {
-      if (data.peerId === room.username) {
-        dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
-      } else {
-        dispatch({ type: "SET_CREATOR", payload: { isCreator: false } });
-      }
-    };
+    // const onCreatorChanged = (data: { peerId: string, isCreator: boolean }) => {
+    //   if (data.peerId === room.username) {
+    //     dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
+    //   } else {
+    //     dispatch({ type: "SET_CREATOR", payload: { isCreator: false } });
+    //   }
+    // };
 
-    const onNewPeerJoin = (data: { peerId: string, isCreator: boolean }) => {
-      if (data.peerId === room.username && data.isCreator) {
-        dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
-      }
-    };
+    // const onNewPeerJoin = (data: { peerId: string, isCreator: boolean }) => {
+    //   if (data.peerId === room.username && data.isCreator) {
+    //     // dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
+    //   }
+    // };
 
     sfuSocket.on("sfu:error", onError);
     sfuSocket.on("sfu:router-capabilities", onRouterCapabilities);
@@ -1011,8 +1011,8 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.on("sfu:transport-connected", onTransportConnected);
     sfuSocket.on("sfu:stream-updated", onStreamUpdated);
     sfuSocket.on("sfu:presence", onPresence);
-    sfuSocket.on("sfu:creator-changed", onCreatorChanged);
-    sfuSocket.on("sfu:new-peer-join", onNewPeerJoin);
+    // sfuSocket.on("sfu:creator-changed", onCreatorChanged);
+    // sfuSocket.on("sfu:new-peer-join", onNewPeerJoin);
 
     // Cleanup
     return () => {
@@ -1034,8 +1034,8 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:transport-connected", onTransportConnected);
       sfuSocket.off("sfu:stream-updated", onStreamUpdated);
       sfuSocket.off("sfu:presence", onPresence);
-      sfuSocket.off("sfu:creator-changed", onCreatorChanged);
-      sfuSocket.off("sfu:new-peer-join", onNewPeerJoin);
+      // sfuSocket.off("sfu:creator-changed", onCreatorChanged);
+      // sfuSocket.off("sfu:new-peer-join", onNewPeerJoin);
     };
   }, [roomId, setupDeviceAndTransports, streams, consumeStream, publishTracks]);
 
@@ -1681,7 +1681,6 @@ export function useCall(roomId: string, password?: string) {
     consumersRef.current.clear();
     speechEventsRef.current = null;
     hasJoinedRef.current = false;
-    // stopMonitoring();
     remoteStreamsMapRef.current.clear();
     pendingStreamsRef.current = [];
     transportReadyRef.current = false;
@@ -1690,8 +1689,6 @@ export function useCall(roomId: string, password?: string) {
     transportConnectingTimerRef.current = null;
     connectingTransportsRef.current.clear();
     sfuSocket.emit("sfu:leave-room", { roomId });
-    sfuSocket.disconnect();
-    sfuSocket.close();
     sfuSocket.io.opts.autoConnect = false;
     sfuSocket.io.opts.reconnection = false;
     setIsJoined(false);
@@ -1700,6 +1697,8 @@ export function useCall(roomId: string, password?: string) {
     setStreams([]);
     setIsScreenSharing(false);
     setIsSpeaking(false);
+    sfuSocket.disconnect();
+    sfuSocket.close();
   }, []);
 
   return {

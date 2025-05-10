@@ -31,9 +31,9 @@ const Room = () => {
   const handleCreateRoom = async () => {
     if (userName.trim() === "") {
       const randomName = nameDefault[Math.floor(Math.random() * nameDefault.length)];
-      dispatch({ type: "JOIN_ROOM", payload: { username: randomName } });
+      dispatch({ type: "JOIN_ROOM", payload: { username: randomName, isCreator: true } });
     } else {
-      dispatch({ type: "JOIN_ROOM", payload: { username: userName } });
+      dispatch({ type: "JOIN_ROOM", payload: { username: userName, isCreator: true } });
     }
     const newRoomId = `${Math.random().toString(36).substring(2, CONSTANT.ROOM_ID_LENGTH)}`;
     navigate(`/room/${newRoomId}`);

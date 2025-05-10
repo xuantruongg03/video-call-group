@@ -35,13 +35,9 @@ export const useWhiteboardSync = ({
       sfuSocket.connect();
     }
     
-    // Đăng ký nhận cập nhật whiteboard từ server
     const handleUpdate = (data: any) => {
       if (!excalidrawAPI || !data.elements) return;
       
-      console.log("Received whiteboard update from server, version:", data.version);
-      
-      // Cập nhật phiên bản mới nhất
       if (data.version) {
         lastVersionRef.current = Math.max(lastVersionRef.current, data.version);
       }
@@ -59,7 +55,6 @@ export const useWhiteboardSync = ({
           elements: data.elements,
           appState
         });
-        console.log("Applied whiteboard update, elements:", data.elements.length);
       } catch (err) {
         console.error("Error applying whiteboard update:", err);
       }
@@ -182,7 +177,6 @@ export const useWhiteboardSync = ({
             elements,
             appState
           });
-          console.log("Initial scene updated successfully");
         } catch (err) {
           console.error("Error updating initial scene:", err);
         }

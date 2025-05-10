@@ -19,7 +19,6 @@ export const NetworkMonitorDialog = ({
     transport,
 }: NetworkMonitorDialogProps) => {
     const [isMonitoringEnabled, setIsMonitoringEnabled] = useState(false);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
     const countdownRef = useRef<NodeJS.Timeout | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(5);
     const monitoringIntervalMs = 5000;
@@ -44,7 +43,6 @@ export const NetworkMonitorDialog = ({
     useEffect(() => {
         const tick = () => {
             setTimeLeft((prev) => {
-                console.log("Tick:", prev); // debug
                 if (prev === 1) {
                     startMonitoring();
                     return monitoringIntervalMs / 1000;
@@ -71,9 +69,6 @@ export const NetworkMonitorDialog = ({
         };
     }, [isMonitoringEnabled, startMonitoring, monitoringIntervalMs]);
 
-
-
-    // Format the countdown timer
     const formatCountdown = (ms: number | null): string => {
         return `${ms}`;
     };

@@ -43,7 +43,7 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
   const pointerDataRef = useRef<any>(null);
   const lastToolRef = useRef<string | null>(null);
   const isDraggingRef = useRef<boolean>(false);
-  const isCreatorRef = useRef<boolean>(false);
+  // const isCreatorRef = useRef<boolean>(false);
   const canDrawRef = useRef<boolean>(false);
   const usernameRef = useRef<string | null>(null);
   
@@ -105,18 +105,17 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
   }, [excalidrawAPI]);
 
   const { users } = useUser(roomId);
+  console.log(users);
+  
   const room = useSelector((state: any) => state.room);
   const myName = room.username;
   const isCreator = room.isCreator;
 
-  // Update permission state when it changes
   useEffect(() => {
-    isCreatorRef.current = isCreator;
+    // isCreatorRef.current = isCreator;
     usernameRef.current = myName;
-    
     const canDraw = isCreator || allowedUsers.includes(myName);
     canDrawRef.current = canDraw;
-    
     if (excalidrawAPI) {
       excalidrawAPI.updateScene({
         appState: {
@@ -285,7 +284,7 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
           const appState = {
             ...excalidrawAPI.getAppState(),
             ...(state || {}),
-            viewModeEnabled: !canDrawRef.current,
+            // viewModeEnabled: !canDrawRef.current,
             collaborators: new Map()
           };
           
@@ -319,14 +318,14 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
         onOpenChange={onClose}
       >
         <SheetContent
-          className="sm:max-w-[800px] md:max-w-[1000px] w-full p-0"
+          className="sm:max-w-[800px] md:max-w-[1200px] w-full p-0"
           side="right"
           style={{ transition: "none" }}>
           <SheetHeader className="p-4 border-b">
             <div className="flex justify-between items-center">
               <SheetTitle>Bảng trắng</SheetTitle>
               <div className="flex items-center gap-2">
-                {isCreatorRef.current && (
+                {isCreator && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -346,7 +345,7 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
               </div>
             </div>
             <SheetDescription>
-              {!canDrawRef.current && !isCreatorRef.current && (
+              { !isCreator && !canDrawRef.current && (
                 <div className="text-yellow-600 bg-yellow-50 p-2 rounded-md mt-2">
                   <span>Bạn chỉ có thể xem bảng trắng này. Chỉ chủ phòng mới có thể vẽ hoặc cấp quyền vẽ.</span>
                 </div>
@@ -387,7 +386,7 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
                       viewBackgroundColor: "#ffffff",
                       currentItemStrokeColor: "#000000",
                       collaborators: new Map(),
-                      viewModeEnabled: !canDrawRef.current
+                      // viewModeEnabled: !canDrawRef.current
                     },
                     scrollToContent: true
                   }}
@@ -396,7 +395,7 @@ export const Whiteboard = React.memo(({ roomId, isOpen, onClose }: WhiteboardPro
                   }}
                   onPointerDown={handlePointerDown}
                   onPointerUp={handlePointerUp}
-                  viewModeEnabled={!canDrawRef.current}
+                  // viewModeEnabled={!canDrawRef.current}
                   zenModeEnabled={false}
                   gridModeEnabled={false}
                   theme="light"
