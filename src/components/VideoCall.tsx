@@ -242,8 +242,13 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
         onClose={() => setIsQRCodeOpen(false)}
         roomId={roomId || ''}
       />
-      <Whiteboard roomId={roomId} isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
-      <QuizSidebar roomId={roomId || ''} isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
+      {isWhiteboardOpen && (
+        <Whiteboard roomId={roomId} isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
+      )}
+      {isQuizOpen && (
+        <QuizSidebar roomId={roomId || ''} isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
+      )}
+
     </div>
   );
 };
