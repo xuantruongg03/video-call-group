@@ -15,6 +15,7 @@ import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { Whiteboard } from "./WhiteBoard";
 import { QuizSidebar } from "./QuizSidebar";
+import { QRCodeDialog } from "./Dialogs/QRCodeDialog";
 
 interface VideoCallProps {
   roomId?: string;
@@ -24,6 +25,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isWhiteboardOpen, setIsWhiteboardOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isQRCodeOpen, setIsQRCodeOpen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [canToggleVideo, setCanToggleVideo] = useState(true);
@@ -225,6 +227,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           isRecording={isRecording}
           isProcessing={isProcessing}
           clearConnection={clearConnection}
+          onShowQRCode={() => setIsQRCodeOpen(true)}
         />
       </div>
       {isChatOpen && (
@@ -234,6 +237,11 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           roomId={roomId}
         />
       )}
+      <QRCodeDialog 
+        isOpen={isQRCodeOpen}
+        onClose={() => setIsQRCodeOpen(false)}
+        roomId={roomId || ''}
+      />
       <Whiteboard roomId={roomId} isOpen={isWhiteboardOpen} onClose={() => setIsWhiteboardOpen(false)} />
       <QuizSidebar roomId={roomId || ''} isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
     </div>
