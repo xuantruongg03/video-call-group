@@ -34,7 +34,6 @@ import {
     SheetHeader,
     SheetTitle
 } from "./ui/sheet";
-import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
     const [activeTab, setActiveTab] = useState<"create" | "take" | "results">("create");
@@ -107,7 +106,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
             isCorrect: false 
         };
 
-        // Nếu là one-choice và chưa có option nào được chọn, set option đầu tiên là true
         if (questionType === 'one-choice' && !options.some(opt => opt.isCorrect)) {
             newOption.isCorrect = true;
         }
@@ -132,14 +130,12 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
         const options = form.getValues(`questions.${questionIndex}.options`) || [];
 
         if (questionType === 'one-choice' && value) {
-            // Nếu là one-choice, set tất cả các options khác thành false
             const updatedOptions = options.map((opt, idx) => ({
                 ...opt,
                 isCorrect: idx === optionIndex
             }));
             form.setValue(`questions.${questionIndex}.options`, updatedOptions);
         } else {
-            // Xử lý bình thường cho multiple-choice
             form.setValue(`questions.${questionIndex}.options.${optionIndex}.isCorrect`, value);
         }
     };
@@ -225,7 +221,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                 });
                 questions = questions.filter(question => question !== null);
                 
-                // Cập nhật form với các câu hỏi mới
                 form.setValue('questions', questions as any);
                 toast.success(`Đã tải lên ${questions.length} câu hỏi thành công`);
 
@@ -239,21 +234,17 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
             toast.error('Có lỗi xảy ra khi đọc file');
         };
 
-        // Đọc file như binary string
         reader.readAsBinaryString(file);
     };
 
-    // Function to create the quiz
     const handleCreateQuiz = (values: z.infer<typeof quizSchema>) => {
         if (!user.isCreator) {
             toast.error("Chỉ người tổ chức mới có thể tạo bài kiểm tra");
             return;
         }
-        // console.log(values);
         
         setIsSubmitting(true);
 
-        // Process the form data to match the backend structure
         const questions = values.questions.map(question => {
             const newQuestion: any = {
                 id: nanoid(),
@@ -310,6 +301,16 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
     };
 
     useEffect(() => {
+        if(isOpen) {
+            if(user.isCreator) {
+                setActiveTab('create');
+            } else {
+                setActiveTab('take');
+            }
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
         const onQuizSession = (data: QuizSession) => {
             setActiveQuiz(data);
             // setActiveTab('take');
@@ -335,7 +336,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                 if (response.activeQuiz) {
                     setActiveQuiz(response.activeQuiz);
                     
-                    // Kiểm tra xem người dùng đã tham gia quiz chưa
                     const participantEntry = response.activeQuiz.participants.find(p => p.participantId === user.username);
                     
                     if (participantEntry) {
@@ -357,7 +357,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                         }
                     }
                     
-                    // Nếu không phải người tổ chức, chuyển sang tab take
                     if (!user.isCreator) {
                         setActiveTab('take');
                     }
@@ -414,7 +413,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                 
                 setAllStudentResults(formattedResults);
                 
-                // Set the first student as selected by default if available
                 if (formattedResults.length > 0) {
                     setSelectedStudentResult(formattedResults[0].participantId);
                     setQuizResults(formattedResults[0].results);
@@ -425,23 +423,19 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
         });
     };
 
-    // Thêm hàm xử lý chuyển tab
     const handleTabChange = (value: string) => {
-        // Nếu đang làm bài, không cho chuyển tab trừ khi là người tổ chức
         if (isQuizInProgress && !user.isCreator && value !== activeTab && value !== 'results') {
             toast.error("Không thể chuyển tab khi đang làm bài");
             return;
         }
         
-        // Nếu không có bài kiểm tra và không phải người tổ chức, không cho chuyển sang tab take
         if (!activeQuiz && !user.isCreator && value === 'take') {
             toast.error("Chưa có bài kiểm tra nào được tạo");
             return;
         }
         
-        // Nếu không có kết quả và không phải người tổ chức hoặc không có bài kiểm tra, không cho chuyển sang tab results
         if (!quizResults && !(user.isCreator && activeQuiz) && value === 'results') {
-            toast.error("Bạn chưa có kết quả bài kiểm tra");
+            toast.error("Chưa có kết quả bài kiểm tra");
             return;
         }
         
@@ -452,10 +446,7 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
         setActiveTab(value as any);
     };
 
-    // Thêm hàm xử lý khi người dùng bắt đầu làm bài
     const handleStartQuiz = () => {
-        // console.log(activeQuiz);
-        
         sfuSocket.emit('sfu:start-quiz', {
             roomId,
             quizId: activeQuiz?.id,
@@ -477,7 +468,6 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
         return false;
     }
 
-    // Handle student selection change
     const handleStudentChange = (studentId: string) => {
         const studentResult = allStudentResults.find(s => s.participantId === studentId);
         if (studentResult) {
@@ -660,7 +650,7 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                                                                             }}
                                                                             value={field.value}
                                                                         >
-                                                                            <SelectTrigger className="w-full sm:w-[250px] text-xs sm:text-sm focus-visible:outline-blue-400 focus-visible:ring-0">
+                                                                            <SelectTrigger className="w-full focus:ring-1 focus:ring-blue-500 sm:w-[250px] text-xs sm:text-sm focus-visible:outline-blue-400 focus-visible:ring-0">
                                                                                 <SelectValue placeholder="Chọn loại câu hỏi" />
                                                                             </SelectTrigger>
                                                                             <SelectContent>
@@ -839,14 +829,14 @@ export const QuizSidebar = ({ isOpen, onClose, roomId }: QuizSidebarProps) => {
                                         {user.isCreator && allStudentResults.length > 0 ? (
                                             <div className="bg-slate-50 p-3 sm:p-6 rounded-lg">
                                                 <div className="mb-4 sm:mb-6">
-                                                    <Label htmlFor="student-select" className="text-sm sm:text-base mb-2 block">
+                                                    <Label htmlFor="student-select" className="text-sm sm:text-base mb-2 block focus:ring-1 focus:ring-blue-500">
                                                         Chọn học sinh
                                                     </Label>
                                                     <Select 
                                                         value={selectedStudentResult || ''}
                                                         onValueChange={handleStudentChange}
                                                     >
-                                                        <SelectTrigger className="w-full">
+                                                        <SelectTrigger className="w-full focus:ring-1 focus:ring-blue-500">
                                                             <SelectValue placeholder="Chọn học sinh" />
                                                         </SelectTrigger>
                                                         <SelectContent>

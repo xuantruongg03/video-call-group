@@ -44,6 +44,7 @@ interface QuizResultsData {
         selectedOptions: string[];
         essayAnswer: string;
         modelAnswer: string;
+        options?: QuizOption[];
     }[];
 }
 
