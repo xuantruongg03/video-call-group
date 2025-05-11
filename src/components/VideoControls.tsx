@@ -1,10 +1,8 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, QrCode, ScreenShare, ScreenShareOff, UserRoundSearch, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
+import { useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
-import { QrCode } from "lucide-react";
 
 interface VideoControlsProps {
   isMuted: boolean;
@@ -20,10 +18,13 @@ interface VideoControlsProps {
   onToggleVoting: () => void;
   onToggleQuiz: () => void;
   onToggleRecording: () => void;
+  onLeaveRoom: () => void;
   isRecording: boolean;
   isProcessing: boolean;
-  clearConnection: () => void;
   onShowQRCode: () => void;
+  onToggleBehaviorMonitoring: () => void;
+  isCreator?: boolean;
+  isMonitorActive?: boolean;
 }
 
 export const VideoControls = ({
@@ -40,36 +41,18 @@ export const VideoControls = ({
   onToggleVoting,
   onToggleQuiz,
   onToggleRecording,
+  onLeaveRoom,
   isRecording,
   isProcessing,
-  clearConnection,
   onShowQRCode,
+  onToggleBehaviorMonitoring,
+  isCreator = false,
+  isMonitorActive = false,
 }: VideoControlsProps) => {
-  const navigate = useNavigate();
   const room = useSelector((state: any) => state.room);
   const isMobile = useIsMobile();
   const [showControls, setShowControls] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollLeft, setScrollLeft] = useState(0);
-
-  const handleLeaveRoom = () => {
-    clearConnection();
-    navigate('/room');
-  };
-
-  const handleScroll = () => {
-    if (scrollContainerRef.current) {
-      setScrollLeft(scrollContainerRef.current.scrollLeft);
-    }
-  };
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
 
   if (!showControls) {
     return (
@@ -92,6 +75,13 @@ export const VideoControls = ({
       icon: <ChevronDown className="h-5 w-5" />,
       className: "bg-white hover:bg-gray-100"
     },
+    ...(isCreator ? [{
+      key: "behavior",
+      title: "Giám sát hành vi",
+      onClick: onToggleBehaviorMonitoring,
+      icon: <UserRoundSearch className="h-5 w-5" />,
+      className: isMonitorActive ? "bg-red-100 hover:bg-red-200" : ""
+    }] : []),
     {
       key: "mute",
       title: "Tắt/bật mic",
@@ -117,11 +107,11 @@ export const VideoControls = ({
       key: "record",
       title: "Ghi hình",
       onClick: isProcessing ? undefined : onToggleRecording,
-      icon: isProcessing ? 
-        <Loader2 className="h-5 w-5 animate-spin" /> : 
+      icon: isProcessing ?
+        <Loader2 className="h-5 w-5 animate-spin" /> :
         (isRecording ? <Disc2 className="h-5 w-5" color="red" /> : <VideoIcon className="h-5 w-5" />),
-      className: isProcessing ? "bg-yellow-100 cursor-not-allowed" : 
-                (isRecording ? "bg-red-100 hover:bg-red-200" : "")
+      className: isProcessing ? "bg-yellow-100 cursor-not-allowed" :
+        (isRecording ? "bg-red-100 hover:bg-red-200" : "")
     },
     {
       key: "whiteboard",
@@ -174,7 +164,7 @@ export const VideoControls = ({
     {
       key: "leave",
       title: "Rời phòng",
-      onClick: handleLeaveRoom,
+      onClick: onLeaveRoom,
       icon: <LogOut className="h-5 w-5" />,
       className: "bg-red-500 hover:bg-red-600 text-white",
       variant: "destructive" as const
@@ -183,7 +173,7 @@ export const VideoControls = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-white p-3 rounded-full shadow-lg z-50">
-      <div 
+      <div
         ref={scrollContainerRef}
         className={isMobile ? "flex items-center gap-2 overflow-x-auto snap-x snap-mandatory max-w-[300px] no-scrollbar" : "flex items-center gap-4"}
       >

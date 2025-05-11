@@ -1,4 +1,3 @@
-import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -7,8 +6,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { sfuSocket } from "@/hooks/use-call";
 import useUser from "@/hooks/use-user";
-import { Users, UserX } from "lucide-react";
+import { FileSpreadsheet, Users, UserX } from "lucide-react";
+import React, { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 
@@ -16,6 +17,8 @@ export const ParticipantsList = React.memo(({ roomId }: { roomId: string }) => {
   const room = useSelector((state: any) => state.room);
   const { isCreator, username: myName } = room;
   const { handleRemoveUser, users } = useUser(roomId);
+  const log = useSelector((state: any) => state.log);
+  const { isMonitorActive } = log;
   
   const usersList = useMemo(() => {
     if (!users) return [];
@@ -37,6 +40,52 @@ export const ParticipantsList = React.memo(({ roomId }: { roomId: string }) => {
       handleRemoveUser(peerId);
     } else {
       toast.error("Bạn không có quyền xóa người tham gia");
+    }
+  };
+
+  const handleDownloadUserLog = async (userId: string) => {
+    if (!isCreator) {
+      toast.error("Bạn không có quyền tải xuống log người dùng");
+      return;
+    }
+
+    try {
+      sfuSocket.emit(
+        "sfu:download-user-log",
+        {
+          roomId,
+          peerId: userId,
+          creatorId: myName,
+        },
+        (file: any) => {
+          if (file && file.success) {
+            window.URL.revokeObjectURL(file.file);
+            const blob = new Blob([file.file], {
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `behavior-logs-${roomId}-${userId}-${new Date()
+              .toISOString()
+              .slice(0, 10)}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            }, 100);
+
+            toast.success(`Đã tải xuống file log của người dùng ${userId}`);
+          } else if (file && !file.success) {
+            toast.error(file.error || "Không thể tải xuống file log");
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Download user log error:', error);
+      toast.error("Không thể tải xuống log người dùng");
     }
   };
 
@@ -62,14 +111,27 @@ export const ParticipantsList = React.memo(({ roomId }: { roomId: string }) => {
             >
               <span className="text-sm">{user.displayName}</span>
               {!user.isMe && isCreator && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => handleRemoveParticipant(user.peerId)}
-                >
-                  <UserX className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  {isMonitorActive && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={() => handleDownloadUserLog(user.peerId)}
+                      title="Tải xuống log hành vi người dùng"
+                    >
+                      <FileSpreadsheet className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleRemoveParticipant(user.peerId)}
+                  >
+                    <UserX className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
           ))}

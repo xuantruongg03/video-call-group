@@ -1,21 +1,24 @@
+import useBehaviorMonitor from "@/hooks/use-behavior-monitor";
 import { sfuSocket, useCall } from "@/hooks/use-call";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useScreenRecorder } from "@/hooks/use-screen-recorder";
+import { ActionLogType } from "@/interfaces/action";
+import { TypeUserEvent } from "@/interfaces/behavior";
 import { Disc2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ChatSidebar } from "./ChatSidebar";
 import { LockRoomDialog } from "./Dialogs/LockRoomDialog";
 import { NetworkMonitorDialog } from "./Dialogs/NetworkMonitorDialog";
+import { QRCodeDialog } from "./Dialogs/QRCodeDialog";
 import { SecretVotingDialog } from "./Dialogs/SecretVotingDialog";
 import { ParticipantsList } from "./ParticipantsList";
+import { QuizSidebar } from "./QuizSidebar";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { Whiteboard } from "./WhiteBoard";
-import { QuizSidebar } from "./QuizSidebar";
-import { QRCodeDialog } from "./Dialogs/QRCodeDialog";
 
 interface VideoCallProps {
   roomId?: string;
@@ -38,6 +41,8 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
+  const dispatch = useDispatch();
+  const { sendLogsToServer, isMonitorActive, toggleBehaviorMonitoring } = useBehaviorMonitor({ roomId: roomId ?? '' });
 
   useEffect(() => {
     if (!room.username) {
@@ -48,6 +53,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (roomId) {
+        sendLogsToServer();
         sfuSocket.emit('sfu:leave-room', { roomId });
       }
     };
@@ -104,6 +110,14 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     if (canToggleVideo) {
       const videoEnabled = toggleVideo();
       setIsVideoOff(!videoEnabled);
+      dispatch({ 
+        type: ActionLogType.SET_EVENT_LOG, 
+        payload: [{ 
+          type: TypeUserEvent.CAM, 
+          value: videoEnabled, 
+          time: new Date() 
+        }] 
+      });
     } else {
       toast.error("Không thể chuyển trạng thái camera");
     }
@@ -113,6 +127,14 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     if (canToggleAudio) {
       const audioEnabled = toggleAudio();
       setIsMuted(!audioEnabled);
+      dispatch({ 
+        type: ActionLogType.SET_EVENT_LOG, 
+        payload: [{ 
+          type: TypeUserEvent.MIC, 
+          value: audioEnabled, 
+          time: new Date() 
+        }] 
+      });
     } else {
       toast.error("Không thể chuyển trạng thái mic");
     }
@@ -133,17 +155,17 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
 
   const handleToggleVoting = () => {
     if (isMobile) {
-      if(isChatOpen) setIsChatOpen(false);
-      if(isWhiteboardOpen) setIsWhiteboardOpen(false);
-      if(isQuizOpen) setIsQuizOpen(false);
+      if (isChatOpen) setIsChatOpen(false);
+      if (isWhiteboardOpen) setIsWhiteboardOpen(false);
+      if (isQuizOpen) setIsQuizOpen(false);
     }
     setIsVotingDialogOpen(!isVotingDialogOpen);
   }
 
   const handleToggleQuiz = () => {
     if (isMobile) {
-      if(isChatOpen) setIsChatOpen(false);
-      if(isWhiteboardOpen) setIsWhiteboardOpen(false);
+      if (isChatOpen) setIsChatOpen(false);
+      if (isWhiteboardOpen) setIsWhiteboardOpen(false);
     }
     setIsQuizOpen(!isQuizOpen);
   };
@@ -165,6 +187,20 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
 
   const handleToggleRecording = () => {
     toggleRecording();
+  };
+
+  const handleToggleBehaviorMonitoring = () => {
+    if (streams.length > 2) {
+      toggleBehaviorMonitoring();
+    } else {
+      toast.error("Không thể bắt đầu giám sát hành vi vì có ít hơn 2 người tham gia cuộc gọi");
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    sendLogsToServer();
+    clearConnection();
+    navigate('/room');
   };
 
   return (
@@ -226,8 +262,11 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           onToggleRecording={handleToggleRecording}
           isRecording={isRecording}
           isProcessing={isProcessing}
-          clearConnection={clearConnection}
+          onLeaveRoom={handleLeaveRoom}
           onShowQRCode={() => setIsQRCodeOpen(true)}
+          onToggleBehaviorMonitoring={handleToggleBehaviorMonitoring}
+          isCreator={room.isCreator}
+          isMonitorActive={isMonitorActive}
         />
       </div>
       {isChatOpen && (
@@ -237,7 +276,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           roomId={roomId}
         />
       )}
-      <QRCodeDialog 
+      <QRCodeDialog
         isOpen={isQRCodeOpen}
         onClose={() => setIsQRCodeOpen(false)}
         roomId={roomId || ''}

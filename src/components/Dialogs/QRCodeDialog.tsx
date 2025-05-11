@@ -1,14 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { QRCodeCanvas as QRCode } from 'qrcode.react';
-import { BrowserQRCodeReader } from '@zxing/browser';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogClose
+  DialogTitle
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { BrowserQRCodeReader } from '@zxing/browser';
+import { QRCodeCanvas as QRCode } from 'qrcode.react';
+import { useEffect, useState } from "react";
 
 interface QRCodeDialogProps {
   isOpen: boolean;
