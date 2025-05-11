@@ -4,7 +4,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useScreenRecorder } from "@/hooks/use-screen-recorder";
 import { ActionLogType } from "@/interfaces/action";
 import { TypeUserEvent } from "@/interfaces/behavior";
-import { Disc2, Loader2 } from "lucide-react";
+import { Disc2, Loader2, QrCode } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +19,7 @@ import { QuizSidebar } from "./QuizSidebar";
 import { VideoControls } from "./VideoControls";
 import { VideoGrid } from "./VideoGrid";
 import { Whiteboard } from "./WhiteBoard";
+import { Button } from "./ui/button";
 
 interface VideoCallProps {
   roomId?: string;
@@ -110,13 +111,13 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     if (canToggleVideo) {
       const videoEnabled = toggleVideo();
       setIsVideoOff(!videoEnabled);
-      dispatch({ 
-        type: ActionLogType.SET_EVENT_LOG, 
-        payload: [{ 
-          type: TypeUserEvent.CAM, 
-          value: videoEnabled, 
-          time: new Date() 
-        }] 
+      dispatch({
+        type: ActionLogType.SET_EVENT_LOG,
+        payload: [{
+          type: TypeUserEvent.CAM,
+          value: videoEnabled,
+          time: new Date()
+        }]
       });
     } else {
       toast.error("Không thể chuyển trạng thái camera");
@@ -127,13 +128,13 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     if (canToggleAudio) {
       const audioEnabled = toggleAudio();
       setIsMuted(!audioEnabled);
-      dispatch({ 
-        type: ActionLogType.SET_EVENT_LOG, 
-        payload: [{ 
-          type: TypeUserEvent.MIC, 
-          value: audioEnabled, 
-          time: new Date() 
-        }] 
+      dispatch({
+        type: ActionLogType.SET_EVENT_LOG,
+        payload: [{
+          type: TypeUserEvent.MIC,
+          value: audioEnabled,
+          time: new Date()
+        }]
       });
     } else {
       toast.error("Không thể chuyển trạng thái mic");
@@ -228,7 +229,18 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       )}
       <div className={`flex-1 p-2 md:p-4 ${(isChatOpen) && !isMobile ? 'mr-[320px]' : ''}`}>
         <div className="mb-2 md:mb-4 flex items-center justify-between">
-          <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base md:text-lg font-semibold">Room ID: {roomId}</h2>
+            <Button
+              variant="outline"
+              size="icon"
+              title="QR Code"
+              onClick={() => setIsQRCodeOpen(true)}
+              className=""
+            >
+              <QrCode className="h-5 w-5" />
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             {isRecording && !isProcessing && (
               <div className="flex items-center gap-1 bg-red-100 px-2 py-1 rounded-full">
@@ -263,7 +275,6 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
           isRecording={isRecording}
           isProcessing={isProcessing}
           onLeaveRoom={handleLeaveRoom}
-          onShowQRCode={() => setIsQRCodeOpen(true)}
           onToggleBehaviorMonitoring={handleToggleBehaviorMonitoring}
           isCreator={room.isCreator}
           isMonitorActive={isMonitorActive}

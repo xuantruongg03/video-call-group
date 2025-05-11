@@ -48,12 +48,19 @@ export default function useDetectEye() {
     faceMeshDetector.onResults((results) => {
       if (results.multiFaceLandmarks?.[0]) {
         const landmarks = results.multiFaceLandmarks[0];
+
         const leftEye = landmarks[159];
+        // const leftEye = landmarks[468];
         const rightEye = landmarks[386];
+        // const rightEye = landmarks[473];
         const nose = landmarks[1];
 
         const avgEyeY = (leftEye.y + rightEye.y) / 2;
-        const isCentered = Math.abs(avgEyeY - nose.y) < 0.03;
+        const avgEyeX = (leftEye.x + rightEye.x) / 2;
+
+        const isVerticallyCentered = Math.abs(avgEyeY - nose.y) < 0.03;
+        const isHorizontallyCentered = Math.abs(avgEyeX - nose.x) < 0.03;
+        const isCentered = isVerticallyCentered && isHorizontallyCentered;
 
         if (isCentered) {
           lostFrames.current = 0;
