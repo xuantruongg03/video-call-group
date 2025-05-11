@@ -260,12 +260,12 @@ export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
       const handleEye = () => {
         console.log("isLookingAtScreen", isLookingAtScreen);
         if (isLookingAtScreen) {
-          dispatch({
-            type: ActionLogType.SET_EVENT_LOG,
-            payload: [
-              { type: TypeUserEvent.ATTENTION, value: true, time: new Date() },
-            ],
-          });
+          // dispatch({
+          //   type: ActionLogType.SET_EVENT_LOG,
+          //   payload: [
+          //     { type: TypeUserEvent.ATTENTION, value: true, time: new Date() },
+          //   ],
+          // });
         } else {
           dispatch({
             type: ActionLogType.SET_EVENT_LOG,

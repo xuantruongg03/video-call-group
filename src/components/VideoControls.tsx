@@ -1,5 +1,5 @@
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Activity, BookCheck, ChevronDown, ChevronUp, Disc2, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, QrCode, ScreenShare, ScreenShareOff, UserRoundSearch, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
+import { Activity, BookCheck, Cctv, ChevronDown, ChevronUp, Disc2, DiscAlbum, Loader2, Lock, LockOpen, LogOut, MessageCircle, Mic, MicOff, PenLine, ScreenShare, ScreenShareOff, Video, Video as VideoIcon, VideoOff, Vote } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Button } from "./ui/button";
@@ -21,7 +21,6 @@ interface VideoControlsProps {
   onLeaveRoom: () => void;
   isRecording: boolean;
   isProcessing: boolean;
-  onShowQRCode: () => void;
   onToggleBehaviorMonitoring: () => void;
   isCreator?: boolean;
   isMonitorActive?: boolean;
@@ -44,7 +43,6 @@ export const VideoControls = ({
   onLeaveRoom,
   isRecording,
   isProcessing,
-  onShowQRCode,
   onToggleBehaviorMonitoring,
   isCreator = false,
   isMonitorActive = false,
@@ -79,7 +77,7 @@ export const VideoControls = ({
       key: "behavior",
       title: "Giám sát hành vi",
       onClick: onToggleBehaviorMonitoring,
-      icon: <UserRoundSearch className="h-5 w-5" />,
+      icon: <Cctv className="h-5 w-5" />,
       className: isMonitorActive ? "bg-red-100 hover:bg-red-200" : ""
     }] : []),
     {
@@ -105,11 +103,11 @@ export const VideoControls = ({
     },
     {
       key: "record",
-      title: "Ghi hình",
+      title: "Ghi lại cuộc họp",
       onClick: isProcessing ? undefined : onToggleRecording,
       icon: isProcessing ?
         <Loader2 className="h-5 w-5 animate-spin" /> :
-        (isRecording ? <Disc2 className="h-5 w-5" color="red" /> : <VideoIcon className="h-5 w-5" />),
+        (isRecording ? <Disc2 className="h-5 w-5" color="red" /> : <DiscAlbum className="h-5 w-5" />),
       className: isProcessing ? "bg-yellow-100 cursor-not-allowed" :
         (isRecording ? "bg-red-100 hover:bg-red-200" : "")
     },
@@ -118,12 +116,6 @@ export const VideoControls = ({
       title: "Bảng trắng",
       onClick: onToggleWhiteboard,
       icon: <PenLine className="h-5 w-5" />,
-      className: ""
-    },
-    {
-      key: "qrcode",
-      onClick: onShowQRCode,
-      icon: <QrCode className="h-5 w-5" />,
       className: ""
     },
     {
