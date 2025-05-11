@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamTile } from "./StreamTile";
+
 export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: {
   streams: { id: string; stream: MediaStream; metadata?: any }[],
   isVideoOff: boolean,
@@ -45,7 +46,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
 
     // Handle screen sharing streams
     if (participantId === 'screen-local' || isScreenShare(participantId)) {
-      // Kiểm tra xem screen share stream có audio track hay không
       const screenStream = participantId === 'screen-local'
         ? streams.find(s => s.id === 'screen-local')
         : streams.find(s => s.id === participantId);
@@ -54,7 +54,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
 
       return {
         videoOff: false,
-        micOff: !hasAudioTracks, // Chỉ đánh dấu muted nếu không có audio track
+        micOff: !hasAudioTracks,
         noCameraAvailable: false
       };
     }
@@ -102,7 +102,6 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       noCameraAvailable
     };
   };
-
 
   const isScreenShare = (streamId: string) => {
     return streamId.includes('screen') ||
@@ -246,12 +245,11 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     };
   };
 
-  // Calculate how many streams to show and how many to hide
   const visibleStreamsCount = isMobile ? 3 : 8;
   const streamsToShow = filteredStreams.slice(0, visibleStreamsCount);
   const remainingStreams = filteredStreams.length > visibleStreamsCount ? 
     filteredStreams.slice(visibleStreamsCount) : [];
-  
+
   const { gridClass, containerClass } = getGridLayout();
   const isSingle = streamsToShow.length === 1 && remainingStreams.length === 0;
 

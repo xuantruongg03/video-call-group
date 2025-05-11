@@ -1,6 +1,8 @@
 import { MicOff, VideoOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { ActionVideoType } from "@/interfaces/action";
 
 interface StreamTileProps {
   stream: { id: string; stream: MediaStream; metadata?: any };
@@ -23,15 +25,29 @@ export const StreamTile = ({
   isScreen,
   isActive,
   onClick,
-  audioStream
+  audioStream,
 }: StreamTileProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (videoRef.current && stream.stream) {
       videoRef.current.srcObject = stream.stream;
+      
+      if (stream.id === 'local' && videoRef.current) {
+        dispatch({
+          type: ActionVideoType.SET_LOCAL_VIDEO_REF,
+          payload: { localVideoRef: videoRef.current }
+        });
+      }
     }
-  }, [stream.stream]);
+
+    return () => {
+      if (stream.id === 'local') {
+        dispatch({ type: ActionVideoType.CLEAR_LOCAL_VIDEO_REF });
+      }
+    };
+  }, [stream.stream, stream.id, dispatch]);
 
   return (
     <motion.div

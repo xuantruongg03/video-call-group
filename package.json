@@ -13,6 +13,8 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@hookform/resolvers": "^3.9.0",
+    "@mediapipe/camera_util": "^0.0.468414",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
