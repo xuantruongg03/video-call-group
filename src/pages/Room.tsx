@@ -174,6 +174,7 @@ const Room = () => {
                       </div>
                       <Input
                         placeholder="Nhập tên hiển thị"
+                        id="name"
                         className="pl-10 text-lg h-12  border-gray-200 focus-visible:outline-blue-400 focus-visible:ring-0"
                         maxLength={CONSTANT.USER_NAME_MAX_LENGTH}
                         value={userName}
@@ -189,6 +190,7 @@ const Room = () => {
                       </div>
                       <Input
                         placeholder="Nhập mã phòng"
+                        id="room"
                         className="pl-10 text-lg h-12 border-2 border-gray-200 focus-visible:outline-blue-400 focus-visible:ring-0"
                         maxLength={CONSTANT.ROOM_ID_LENGTH}
                         minLength={CONSTANT.ROOM_ID_LENGTH}
@@ -198,6 +200,7 @@ const Room = () => {
                     </div>
                     <Button
                       onClick={handleJoinRoom}
+                      id="join-btn"
                       className="h-12 bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-400 focus-visible:ring-0"
                       disabled={isPending || isRoomStatusPending || isVerifyRoomPending || !roomId.trim()}
                     >
