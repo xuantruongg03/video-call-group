@@ -33,67 +33,73 @@ export default function useDetectEye() {
 
     setIsInitialized(true);
 
-    const faceMeshDetector = new faceMesh.FaceMesh({
-      locateFile: (file) =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-    });
+    try {
+      const faceMeshDetector = new faceMesh.FaceMesh({
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
 
-    faceMeshDetector.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    });
+      faceMeshDetector.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
 
-    faceMeshDetector.onResults((results) => {
-      if (results.multiFaceLandmarks?.[0]) {
-        const landmarks = results.multiFaceLandmarks[0];
+      faceMeshDetector.onResults((results) => {
+        if (results.multiFaceLandmarks?.[0]) {
+          const landmarks = results.multiFaceLandmarks[0];
 
-        const leftEye = landmarks[159];
-        // const leftEye = landmarks[468];
-        const rightEye = landmarks[386];
-        // const rightEye = landmarks[473];
-        const nose = landmarks[1];
+          const leftEye = landmarks[159];
+          // const leftEye = landmarks[468];
+          const rightEye = landmarks[386];
+          // const rightEye = landmarks[473];
+          const nose = landmarks[1];
 
-        const avgEyeY = (leftEye.y + rightEye.y) / 2;
-        const avgEyeX = (leftEye.x + rightEye.x) / 2;
+          const avgEyeY = (leftEye.y + rightEye.y) / 2;
+          const avgEyeX = (leftEye.x + rightEye.x) / 2;
 
-        const isVerticallyCentered = Math.abs(avgEyeY - nose.y) < 0.03;
-        const isHorizontallyCentered = Math.abs(avgEyeX - nose.x) < 0.03;
-        const isCentered = isVerticallyCentered && isHorizontallyCentered;
+          const isVerticallyCentered = Math.abs(avgEyeY - nose.y) < 0.03;
+          const isHorizontallyCentered = Math.abs(avgEyeX - nose.x) < 0.03;
+          const isCentered = isVerticallyCentered && isHorizontallyCentered;
 
-        if (isCentered) {
-          lostFrames.current = 0;
-          setIsLookingAtScreen(true);
+          if (isCentered) {
+            lostFrames.current = 0;
+            setIsLookingAtScreen(true);
+          } else {
+            lostFrames.current++;
+            if (lostFrames.current > 3) setIsLookingAtScreen(false);
+          }
         } else {
           lostFrames.current++;
           if (lostFrames.current > 3) setIsLookingAtScreen(false);
         }
-      } else {
-        lostFrames.current++;
-        if (lostFrames.current > 3) setIsLookingAtScreen(false);
-      }
-    });
+      });
 
-    async function detectLoop() {
-      if (!video || video.readyState !== 4) {
+      async function detectLoop() {
+        if (!video || video.readyState !== 4) {
+          requestRef.current = requestAnimationFrame(detectLoop);
+          return;
+        }
+
+        const canvasEl = canvas.current;
+        canvasEl.width = video.videoWidth;
+        canvasEl.height = video.videoHeight;
+        const ctx = canvasEl.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvasEl.width, canvasEl.height);
+          await faceMeshDetector.send({ image: canvasEl });
+        }
+
         requestRef.current = requestAnimationFrame(detectLoop);
-        return;
       }
 
-      const canvasEl = canvas.current;
-      canvasEl.width = video.videoWidth;
-      canvasEl.height = video.videoHeight;
-      const ctx = canvasEl.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvasEl.width, canvasEl.height);
-        await faceMeshDetector.send({ image: canvasEl });
-      }
-
-      requestRef.current = requestAnimationFrame(detectLoop);
+      detectLoop();
+    } catch (error) {
+      console.error("Error initializing FaceMesh:", error);
+      setHasCamera(false);
+      setIsInitialized(false);
     }
-
-    detectLoop();
 
     return () => {
       if (requestRef.current) {
