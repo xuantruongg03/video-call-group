@@ -4,7 +4,7 @@ import { TypeUserEvent } from "@/interfaces/behavior";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import useDetectEye from "./use-detect-eye";
+// import useDetectEye from "./use-detect-eye";
 
 interface BehaviorMonitorProps {
   roomId: string;
@@ -12,7 +12,10 @@ interface BehaviorMonitorProps {
 
 export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
   const dispatch = useDispatch();
-  const { isLookingAtScreen, isInitialized, hasCamera } = useDetectEye();
+  // const { isLookingAtScreen, isInitialized, hasCamera } = useDetectEye();
+  const isLookingAtScreen = false;
+  const isInitialized = false;
+  const hasCamera = false;
   const interval = useRef<NodeJS.Timeout | null>(null);
   const logSendInterval = useRef<NodeJS.Timeout | null>(null);
   const room = useSelector((state: any) => state.room);
@@ -253,37 +256,37 @@ export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
     window.addEventListener("focus", handleFocus);
     window.addEventListener("blur", handleBlur);
 
-    let eyeTrackingInterval = 10000;
+    // let eyeTrackingInterval = 10000;
 
-    // Giám sát người dùng có đang nhìn vào màn hình hay không
-    if (isInitialized && hasCamera) {
-      const handleEye = () => {
-        console.log("isLookingAtScreen", isLookingAtScreen);
-        if (isLookingAtScreen) {
-          // dispatch({
-          //   type: ActionLogType.SET_EVENT_LOG,
-          //   payload: [
-          //     { type: TypeUserEvent.ATTENTION, value: true, time: new Date() },
-          //   ],
-          // });
-        } else {
-          dispatch({
-            type: ActionLogType.SET_EVENT_LOG,
-            payload: [
-              { type: TypeUserEvent.ATTENTION, value: false, time: new Date() },
-            ],
-          });
-        }
-      };
+    // // Giám sát người dùng có đang nhìn vào màn hình hay không
+    // if (isInitialized && hasCamera) {
+    //   const handleEye = () => {
+    //     console.log("isLookingAtScreen", isLookingAtScreen);
+    //     if (isLookingAtScreen) {
+    //       // dispatch({
+    //       //   type: ActionLogType.SET_EVENT_LOG,
+    //       //   payload: [
+    //       //     { type: TypeUserEvent.ATTENTION, value: true, time: new Date() },
+    //       //   ],
+    //       // });
+    //     } else {
+    //       dispatch({
+    //         type: ActionLogType.SET_EVENT_LOG,
+    //         payload: [
+    //           { type: TypeUserEvent.ATTENTION, value: false, time: new Date() },
+    //         ],
+    //       });
+    //     }
+    //   };
 
-      interval.current = setInterval(handleEye, eyeTrackingInterval);
-    }
+    //   interval.current = setInterval(handleEye, eyeTrackingInterval);
+    // }
 
     return () => {
-      if (interval.current) {
-        clearInterval(interval.current);
-        interval.current = null;
-      }
+      // if (interval.current) {
+      //   clearInterval(interval.current);
+      //   interval.current = null;
+      // }
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
