@@ -1,4 +1,4 @@
-import * as faceMesh from "@mediapipe/face_mesh";
+import { FaceMesh } from "@mediapipe/face_mesh";
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
@@ -34,7 +34,7 @@ export default function useDetectEye() {
     setIsInitialized(true);
 
     try {
-      const faceMeshDetector = new faceMesh.FaceMesh({
+      const faceMeshDetector = new FaceMesh({
         locateFile: (file) =>
           `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
