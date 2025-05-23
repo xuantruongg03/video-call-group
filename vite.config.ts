@@ -9,14 +9,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 5173,
-    https: {
-      key: fs.readFileSync("secrets/private-key.pem"),
-      cert: fs.readFileSync("secrets/public-certificate.pem"),
-    },
-    allowedHosts: [
-      "8fb0-42-1-85-88.ngrok-free.app", 
-      "localhost", 
-    ],
+    // https: {
+    //   key: fs.readFileSync("secrets/private-key.pem"),
+    //   cert: fs.readFileSync("secrets/public-certificate.pem"),
+    // },
+    // allowedHosts: [
+    //   "8fb0-42-1-85-88.ngrok-free.app", 
+    //   "localhost", 
+    // ],
   },
   define: {
     "process.env.IS_PREACT": JSON.stringify("true"),

@@ -8,6 +8,11 @@ export interface Message {
   senderName: string;
   text: string;
   timestamp: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  isImage?: boolean;
 }
 
 export function useChat(roomId: string, userName: string) {
@@ -60,8 +65,37 @@ export function useChat(roomId: string, userName: string) {
     }
   };
   
+  const sendFileMessage = (file: File) => {
+    // Chuyển file thành base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64Data = e.target?.result as string;
+      
+      // Chuẩn bị message với thông tin file
+      const message = {
+        sender: userName,
+        senderName: userName,
+        text: file.name, // Sử dụng tên file làm nội dung tin nhắn
+        fileUrl: base64Data,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        isImage: file.type.startsWith('image/')
+      };
+      
+      // Gửi qua websocket
+      sfuSocket.emit('chat:file', {
+        roomId,
+        message
+      });
+    };
+    
+    reader.readAsDataURL(file);
+  };
+  
   return {
     messages,
-    sendMessage
+    sendMessage,
+    sendFileMessage
   };
 }
