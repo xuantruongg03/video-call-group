@@ -44,15 +44,12 @@ export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
     return true;
   }, [eventLog, username, roomId, dispatch]);
 
-  // Hàm tiết chế (throttle) việc gửi logs để tránh gửi quá nhiều lần
   const throttledSendLogs = useCallback(() => {
     const now = Date.now();
-    // Chỉ gửi logs nếu đã qua ít nhất 5 giây kể từ lần cuối
     if (now - lastRequestTimeRef.current > 5000) {
       lastRequestTimeRef.current = now;
       sendLogsToServer();
     } else if (!requestLogThrottleRef.current) {
-      // Nếu có nhiều yêu cầu trong thời gian ngắn, lên lịch gửi sau khoảng thời gian hợp lý
       requestLogThrottleRef.current = setTimeout(() => {
         lastRequestTimeRef.current = Date.now();
         sendLogsToServer();
@@ -62,7 +59,6 @@ export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
   }, [sendLogsToServer]);
 
   useEffect(() => {
-    // Đảm bảo chỉ đăng ký các sự kiện một lần
     if (eventListenersRegistered.current || !sfuSocket) {
       return;
     }
@@ -193,7 +189,6 @@ export default function useBehaviorMonitor({ roomId }: BehaviorMonitorProps) {
         }
       };
     } else if (!isMonitorActive && logSendInterval.current) {
-      // Clear interval when monitoring is deactivated
       clearInterval(logSendInterval.current);
       logSendInterval.current = null;
     }

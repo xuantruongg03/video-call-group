@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
 import { useNetworkMonitor } from './use-network-monitor';
+import { ActionRoomType } from "@/interfaces/action";
 const SFU_URL = import.meta.env.VITE_SFU_URL || "http://localhost:3002";
 
 interface StreamMetadata {
@@ -349,6 +350,12 @@ export function useCall(roomId: string, password?: string) {
     };
 
     const onError = (err: { message: string; code: string; streamId?: string }) => {
+      if (err.code === 'STREAM_NOT_PRIORITIZED') {
+        // Không hiển thị thông báo lỗi cho người dùng
+        console.log(`Stream ${err.streamId} không được ưu tiên do giới hạn số lượng người dùng`);
+        return;
+      }
+      
       setError(err.message);
       toast.error(err.message);
 
@@ -812,6 +819,13 @@ export function useCall(roomId: string, password?: string) {
         newSpeakingPeers.add(data.peerId);
         return newSpeakingPeers;
       });
+
+      // if (streams.length > 10) {
+      //   const stream = streams.find(s => s.id.includes(data.peerId));
+      //   if (!stream) {
+      //     sfuSocket.emit("sfu:get-streams", { roomId });
+      //   }
+      // }
     };
 
     const onUserStoppedSpeaking = (data: { peerId: string }) => {
@@ -979,19 +993,54 @@ export function useCall(roomId: string, password?: string) {
       });
     };
 
-    // const onCreatorChanged = (data: { peerId: string, isCreator: boolean }) => {
-    //   if (data.peerId === room.username) {
-    //     dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
-    //   } else {
-    //     dispatch({ type: "SET_CREATOR", payload: { isCreator: false } });
-    //   }
-    // };
+    const onScreenShareStarted = (data: { peerId: string; streamId: string }) => {
+      toast.info(`${data.peerId} đang chia sẻ màn hình`);
+      
+      if (isJoined && recvTransportRef.current?.connectionState === 'connected') {
+        sfuSocket.emit("sfu:get-streams", { roomId });
+      }
+    };
+  
+    const onScreenShareStopped = (data: { peerId: string; streamId: string }) => {
+      toast.info(`${data.peerId} đã dừng chia sẻ màn hình`);
+    };
 
-    // const onNewPeerJoin = (data: { peerId: string, isCreator: boolean }) => {
-    //   if (data.peerId === room.username && data.isCreator) {
-    //     // dispatch({ type: "SET_CREATOR", payload: { isCreator: true } });
-    //   }
-    // };
+    const onReconnectRequired = (data: { reason: string, message: string }) => {
+      console.log(`Reconnect required: ${data.message} (${data.reason})`);
+      
+      // Hiển thị thông báo cho người dùng
+      toast.info(data.message);
+      
+      // Đóng tất cả transport hiện tại
+      if (sendTransportRef.current) {
+        sendTransportRef.current.close();
+        sendTransportRef.current = null;
+      }
+      
+      if (recvTransportRef.current) {
+        recvTransportRef.current.close();
+        recvTransportRef.current = null;
+      }
+      
+      // Xóa tất cả consumer và producer
+      producersRef.current.clear();
+      consumersRef.current.clear();
+      
+      // Yêu cầu lại router capabilities
+      sfuSocket.emit("sfu:get-rtpcapabilities", { roomId });
+      
+      // Reset các trạng thái
+      deviceRef.current = null;
+      transportReadyRef.current = false;
+      publishedKindsRef.current = {};
+      
+      // Khởi tạo lại device và transport
+      setTimeout(() => {
+        if (isJoined) {
+          sfuSocket.emit("sfu:get-rtpcapabilities", { roomId });
+        }
+      }, 1000);
+    };
 
     sfuSocket.on("sfu:error", onError);
     sfuSocket.on("sfu:router-capabilities", onRouterCapabilities);
@@ -1011,8 +1060,9 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.on("sfu:transport-connected", onTransportConnected);
     sfuSocket.on("sfu:stream-updated", onStreamUpdated);
     sfuSocket.on("sfu:presence", onPresence);
-    // sfuSocket.on("sfu:creator-changed", onCreatorChanged);
-    // sfuSocket.on("sfu:new-peer-join", onNewPeerJoin);
+    sfuSocket.on("sfu:screen-share-started", onScreenShareStarted);
+    sfuSocket.on("sfu:screen-share-stopped", onScreenShareStopped);
+    sfuSocket.on("sfu:reconnect-required", onReconnectRequired);
 
     // Cleanup
     return () => {
@@ -1034,8 +1084,9 @@ export function useCall(roomId: string, password?: string) {
       sfuSocket.off("sfu:transport-connected", onTransportConnected);
       sfuSocket.off("sfu:stream-updated", onStreamUpdated);
       sfuSocket.off("sfu:presence", onPresence);
-      // sfuSocket.off("sfu:creator-changed", onCreatorChanged);
-      // sfuSocket.off("sfu:new-peer-join", onNewPeerJoin);
+      sfuSocket.off("sfu:screen-share-started", onScreenShareStarted);
+      sfuSocket.off("sfu:screen-share-stopped", onScreenShareStopped);
+      sfuSocket.off("sfu:reconnect-required", onReconnectRequired);
     };
   }, [roomId, setupDeviceAndTransports, streams, consumeStream, publishTracks]);
 
@@ -1602,8 +1653,6 @@ export function useCall(roomId: string, password?: string) {
               opusDtx: true,
             },
           });
-
-          console.log(`Screen share audio producer created: ${screenAudioProducer.id}`);
         }
 
         setIsScreenSharing(true);
@@ -1632,7 +1681,6 @@ export function useCall(roomId: string, password?: string) {
             (info?.appData && info.appData.type === "screen") || 
             (info?.appData && info.appData.type === "screen-audio") ||
             (info?.appData && info.appData.isScreenShare)) {
-          console.log(`Unpublishing screen share on end: ${info.streamId || producerId}`);
           sfuSocket.emit("sfu:unpublish", { streamId: info.streamId || producerId });
           producersRef.current.delete(producerId);
         }
@@ -1701,6 +1749,37 @@ export function useCall(roomId: string, password?: string) {
     sfuSocket.close();
   }, []);
 
+  // Thêm hàm để ghim người dùng
+  const togglePinUser = useCallback((peerId: string) => {
+    if (!isJoined || !roomId) return;
+    
+    if (room.pinnedUsers.some((user) => user.userId === peerId)) {
+      sfuSocket.emit("sfu:unpin-user", {
+        roomId,
+        peerId,
+      }, (res) => {
+        if (res.success) {
+          dispatch({
+            type: ActionRoomType.REMOVE_PINNED_USER,
+            payload: { userId: peerId }
+          });
+        }
+      });
+    } else {
+      sfuSocket.emit("sfu:pin-user", {
+        roomId,
+        peerId,
+      }, (res) => {
+        if (res.success) {
+          dispatch({
+            type: ActionRoomType.SET_PINNED_USERS,
+            payload: { userId: peerId }
+          });
+        }
+      });
+    }
+  }, [isJoined, roomId, dispatch]);
+
   return {
     isConnected: sfuSocket.connected,
     isJoined: hasJoinedRef.current,
@@ -1715,6 +1794,7 @@ export function useCall(roomId: string, password?: string) {
     isScreenSharing,
     speakingPeers,
     isSpeaking,
-    recvTransport: recvTransportRef.current
+    recvTransport: recvTransportRef.current,
+    togglePinUser,
   };
 }

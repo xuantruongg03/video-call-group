@@ -1,14 +1,26 @@
 import { UserEvent } from "./behavior";
 
 export interface ActionRoom {
-  type: string;
+  type: ActionRoomType;
   payload?: {
     username?: string;
     password?: string;
     isLocked?: boolean;
     isCreator?: boolean;
+    pinnedUsers?: string[];
   };
 }
+
+export enum ActionRoomType {
+  JOIN_ROOM = "JOIN_ROOM",
+  LEAVE_ROOM = "LEAVE_ROOM",
+  SET_CREATOR = "SET_CREATOR",
+  SET_PINNED_USERS = "SET_PINNED_USERS",
+  REMOVE_PINNED_USER = "REMOVE_PINNED_USER",
+  RESET_PINNED_USER = "RESET_PINNED_USER",
+  RESET = "RESET",
+}
+
 export enum ActionVideoType {
   SET_LOCAL_VIDEO_REF = "SET_LOCAL_VIDEO_REF",
   CLEAR_LOCAL_VIDEO_REF = "CLEAR_LOCAL_VIDEO_REF",

@@ -11,6 +11,8 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { ScrollArea } from "../ui/scroll-area";
 import { X } from "lucide-react";
+import { toast } from "sonner";
+import CONSTANT from "src/lib/constant";
 
 interface User {
   peerId: string;
@@ -41,6 +43,10 @@ export const WhiteboardPermissionsDialog = ({
 
   const handleCheckboxChange = (peerId: string, checked: boolean) => {
     if (checked) {
+      if (selectedUsers.length >= CONSTANT.MAX_PERMISSION_WHITEBOARD) {
+        toast.error('Số người dùng được phép vẽ bảng trắng đã đạt giới hạn');
+        return;
+      }
       setSelectedUsers((prev) => [...prev, peerId]);
     } else {
       setSelectedUsers((prev) => prev.filter((id) => id !== peerId));

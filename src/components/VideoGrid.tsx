@@ -3,15 +3,19 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StreamTile } from "./StreamTile";
+import { useDispatch, useSelector } from "react-redux";
+import { ActionRoomType } from "@/interfaces/action";
 
-export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking }: {
+export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeaking, togglePinUser }: {
   streams: { id: string; stream: MediaStream; metadata?: any }[],
   isVideoOff: boolean,
   isMuted: boolean,
   speakingPeers: string[],
-  isSpeaking: boolean
+  isSpeaking: boolean,
+  togglePinUser: (peerId: string) => void
 }) => {
   const [activeStream, setActiveStream] = useState<string | null>(null);
+  const dispatch = useDispatch();
   const isMobile = useIsMobile();
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
   const streamMapRef = useRef<Map<string, MediaStream>>(new Map());
@@ -21,6 +25,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       videoElement.srcObject = stream;
     }
   }, []);
+  const room = useSelector((state: any) => state.room);
 
   useEffect(() => {
     streams.forEach(({ id, stream }) => {
@@ -118,6 +123,9 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
 
   const filteredStreams = useMemo(() => {
     const sortedByType = [...sortedStreams].sort((a, b) => {
+      const aId = a.id.replace('remote-', '').split('-')[0];
+      const bId = b.id.replace('remote-', '').split('-')[0];
+
       // Screen shares get top priority
       if (isScreenShare(a.id) && !isScreenShare(b.id)) return -1;
       if (!isScreenShare(a.id) && isScreenShare(b.id)) return 1;
@@ -127,8 +135,18 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
       if (b.id === 'local') return 1;
 
       // Then webcams
-      if (a.id.includes('-webcam-') && !b.id.includes('-webcam-')) return -1;
-      if (!a.id.includes('-webcam-') && b.id.includes('-webcam-')) return 1;
+      // if (a.id.includes('-webcam-') && !b.id.includes('-webcam-')) return -1;
+      // if (!a.id.includes('-webcam-') && b.id.includes('-webcam-')) return 1;
+
+      const aIsPinned = room.pinnedUsers.includes(aId);
+      const bIsPinned = room.pinnedUsers.includes(bId);
+      if (aIsPinned && !bIsPinned) return -1;
+      if (!aIsPinned && bIsPinned) return 1;
+
+      const aIsSpeaking = speakingPeers.includes(aId);
+      const bIsSpeaking = speakingPeers.includes(bId);
+      if (aIsSpeaking && !bIsSpeaking) return -1;
+      if (!aIsSpeaking && bIsSpeaking) return 1;
 
       return 0;
     });
@@ -196,7 +214,7 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
     });
 
     return result;
-  }, [sortedStreams]);
+  }, [sortedStreams, room.pinnedUsers, speakingPeers]);
 
   const getGridLayout = () => {
     const count = filteredStreams.filter(s => !s.id.includes('audio') && !s.id.includes('mic')).length;
@@ -310,6 +328,8 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
               micOff={getParticipantStatus(streamsToShow[0].id).micOff}
               isScreen={isScreenShare(streamsToShow[0].id)}
               audioStream={null}
+              isPinned={room.pinnedUsers?.includes(streamsToShow[0].id)}
+              togglePin={() => togglePinUser(streamsToShow[0].id)}
             />
           </div>
         </div>
@@ -350,6 +370,8 @@ export const VideoGrid = ({ streams, isVideoOff, isMuted, speakingPeers, isSpeak
                       micOff={micOff}
                       isScreen={isScreen}
                       audioStream={audioStream}
+                      isPinned={room.pinnedUsers?.includes(stream.id)}
+                      togglePin={() => togglePinUser(stream.id)}
                     />
                   </div>
                 );

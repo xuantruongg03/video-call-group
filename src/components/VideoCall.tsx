@@ -38,7 +38,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isNetworkMonitorOpen, setIsNetworkMonitorOpen] = useState(false);
   const [isVotingDialogOpen, setIsVotingDialogOpen] = useState(false);
   const { isRecording, isProcessing, toggleRecording } = useScreenRecorder();
-  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport } = useCall(roomId ?? '');
+  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport, togglePinUser } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
@@ -257,7 +257,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
             <ParticipantsList roomId={roomId} />
           </div>
         </div>
-        <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} speakingPeers={Array.from(speakingPeers)} isSpeaking={isSpeaking} />
+        <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} speakingPeers={Array.from(speakingPeers)} isSpeaking={isSpeaking} togglePinUser={togglePinUser} />
         <VideoControls
           isMuted={isMuted}
           isVideoOff={isVideoOff}

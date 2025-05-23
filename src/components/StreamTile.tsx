@@ -1,8 +1,8 @@
-import { MicOff, VideoOff } from "lucide-react";
-import { motion } from "framer-motion";
-import { useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
 import { ActionVideoType } from "@/interfaces/action";
+import { motion } from "framer-motion";
+import { MicOff, VideoOff, Pin, PinOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
 
 interface StreamTileProps {
   stream: { id: string; stream: MediaStream; metadata?: any };
@@ -14,7 +14,52 @@ interface StreamTileProps {
   isActive: boolean;
   onClick: () => void;
   audioStream?: MediaStream;
+  isPinned?: boolean;
+  togglePin?: () => void;
 }
+
+export const PinOverlay = ({ 
+  isPinned, 
+  togglePin, 
+  isLocal = false 
+}: { 
+  isPinned?: boolean; 
+  togglePin?: () => void;
+  isLocal?: boolean;
+}) => {
+  // Không hiển thị nút ghim cho video của chính mình
+  if (isLocal) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute top-1 left-1 z-20"
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          togglePin?.();
+        }}
+        className={`
+          flex items-center justify-center p-1.5 rounded-full 
+          transition-colors duration-200
+          ${isPinned 
+            ? "bg-blue-500 text-white hover:bg-blue-600" 
+            : "bg-black/60 text-white hover:bg-black/80"}
+        `}
+        title={isPinned ? "Bỏ ghim" : "Ghim người dùng này"}
+      >
+        {isPinned ? (
+          <PinOff className="h-3.5 w-3.5" />
+        ) : (
+          <Pin className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </motion.div>
+  );
+};
 
 export const StreamTile = ({
   stream,
@@ -26,9 +71,13 @@ export const StreamTile = ({
   isActive,
   onClick,
   audioStream,
+  isPinned,
+  togglePin,
 }: StreamTileProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const dispatch = useDispatch();
+  const [showControls, setShowControls] = useState(false);
+  const isLocal = stream.id === 'local';
 
   useEffect(() => {
     if (videoRef.current && stream.stream) {
@@ -57,7 +106,11 @@ export const StreamTile = ({
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.3 }}
       onClick={onClick}
-      className={`relative bg-gray-800 rounded-md overflow-hidden flex items-center justify-center cursor-pointer hover:ring-1 hover:ring-blue-500 w-full h-full`}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+      className={`relative bg-gray-800 rounded-md overflow-hidden flex items-center justify-center cursor-pointer hover:ring-1 hover:ring-blue-500 w-full h-full ${
+        isPinned ? "ring-2 ring-blue-500" : ""
+      }`}
     >
       <div
         className={`relative bg-gray-800 w-full h-full rounded-md overflow-hidden ${
@@ -112,6 +165,23 @@ export const StreamTile = ({
           </div>
         )}
       </div>
+      
+      {/* Hiển thị nút ghim khi hover hoặc đã được ghim */}
+      {(showControls || isPinned) && togglePin && (
+        <PinOverlay 
+          isPinned={isPinned} 
+          togglePin={togglePin} 
+          isLocal={isLocal} 
+        />
+      )}
+      
+      {/* Hiển thị badge khi đã được ghim */}
+      {isPinned && (
+        <div className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
+          <Pin className="h-3 w-3" />
+          <span>Đã ghim</span>
+        </div>
+      )}
     </motion.div>
   );
 };

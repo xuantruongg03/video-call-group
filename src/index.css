@@ -60,6 +60,11 @@
       scrollbar-width: none;  /* Firefox */
     }
   }
+
+  video {
+    -webkit-transform: scaleX(-1);
+    transform: scaleX(-1);
+  }
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
