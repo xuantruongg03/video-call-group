@@ -12,7 +12,7 @@ import { Checkbox } from "../ui/checkbox";
 import { ScrollArea } from "../ui/scroll-area";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import CONSTANT from "src/lib/constant";
+import CONSTANT from "@/lib/constant";
 
 interface User {
   peerId: string;
