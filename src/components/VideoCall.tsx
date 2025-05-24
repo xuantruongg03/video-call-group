@@ -37,13 +37,46 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
   const [isShowDialogPassword, setIsShowDialogPassword] = useState(false);
   const [isNetworkMonitorOpen, setIsNetworkMonitorOpen] = useState(false);
   const [isVotingDialogOpen, setIsVotingDialogOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initStage, setInitStage] = useState<string>("Khởi tạo kết nối...");
   const { isRecording, isProcessing, toggleRecording } = useScreenRecorder();
-  const { streams, toggleVideo, toggleAudio, toggleScreenShare, isScreenSharing, toggleLockRoom, clearConnection, speakingPeers, isSpeaking, recvTransport, togglePinUser } = useCall(roomId ?? '');
+  const { 
+    streams, 
+    toggleVideo, 
+    toggleAudio, 
+    toggleScreenShare, 
+    isScreenSharing, 
+    toggleLockRoom, 
+    clearConnection, 
+    speakingPeers, 
+    isSpeaking, 
+    recvTransport, 
+    togglePinUser,
+    isConnected,
+    isJoined
+  } = useCall(roomId ?? '');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const room = useSelector((state: any) => state.room);
   const dispatch = useDispatch();
   const { sendLogsToServer, isMonitorActive, toggleBehaviorMonitoring } = useBehaviorMonitor({ roomId: roomId ?? '' });
+
+  // Effect to update initialization status
+  useEffect(() => {
+    if (!isConnected) {
+      setInitStage("Đang kết nối đến máy chủ...");
+    } else if (!isJoined) {
+      setInitStage("Đang tham gia phòng...");
+    } else if (streams.length === 0) {
+      setInitStage("Đang khởi tạo media...");
+    } else {
+      // Complete initialization after a short delay to ensure media is loaded
+      const timer = setTimeout(() => {
+        setIsInitializing(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, isJoined, streams]);
 
   useEffect(() => {
     if (!room.username) {
@@ -204,6 +237,36 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
     navigate('/room');
   };
 
+  if (isInitializing) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50 items-center justify-center">
+        <div className="flex flex-col items-center space-y-8">
+          <div className="relative w-24 h-24 flex items-center justify-center">
+            <div className="absolute inset-0 bg-blue-500 rounded-full opacity-20 animate-ping"></div>
+            <div className="absolute inset-0 bg-blue-500 rounded-full opacity-30 animate-pulse"></div>
+            <div className="relative bg-white rounded-full p-5 shadow-lg">
+              <Loader2 className="h-14 w-14 text-blue-500 animate-spin" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-semibold text-gray-800">Đang khởi tạo cuộc gọi</h2>
+            <p className="text-gray-600">{initStage}</p>
+          </div>
+          <div className="w-72 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full animate-progress"></div>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleLeaveRoom}
+            className="mt-6"
+          >
+            Huỷ và quay lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gray-50 relative">
       {isShowDialogPassword && (
@@ -254,7 +317,7 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
                 <span className="text-xs text-yellow-600 font-medium">Đang xử lý</span>
               </div>
             )}
-            <ParticipantsList roomId={roomId} />
+            <ParticipantsList roomId={roomId} togglePinUser={togglePinUser} />
           </div>
         </div>
         <VideoGrid streams={streams} isVideoOff={isVideoOff} isMuted={isMuted} speakingPeers={Array.from(speakingPeers)} isSpeaking={isSpeaking} togglePinUser={togglePinUser} />
@@ -298,7 +361,6 @@ export const VideoCall = ({ roomId }: VideoCallProps) => {
       {isQuizOpen && (
         <QuizSidebar roomId={roomId || ''} isOpen={isQuizOpen} onClose={() => setIsQuizOpen(false)} />
       )}
-
     </div>
   );
 };

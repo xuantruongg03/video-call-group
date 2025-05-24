@@ -1,11 +1,10 @@
+import { ActionRoomType } from "@/interfaces/action";
 import hark from "hark";
 import { Device, types as mediasoupTypes } from "mediasoup-client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import { toast } from "sonner";
-import { useNetworkMonitor } from './use-network-monitor';
-import { ActionRoomType } from "@/interfaces/action";
 const SFU_URL = import.meta.env.VITE_SFU_URL || "http://localhost:3002";
 
 interface StreamMetadata {
